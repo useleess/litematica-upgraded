@@ -1,0 +1,39 @@
+{
+  "required": true,
+  "package": "com.useleess.litematicaupgraded.mixin",
+  "plugin": "com.useleess.litematicaupgraded.compat.OptifineMixinPlugin",
+  "compatibilityLevel": "JAVA_8",
+  "minVersion": "0.8",
+  "client": [
+    "MixinPlayerControllerMPFakeRotation",
+    "MixinEasyPlaceUtilsUseAction",
+    "MixinTaskProcessChunkBase",
+    "MixinTaskPasteSchematicPerChunkCommand",
+    "MixinTaskFillArea",
+    "MixinDataFileUtilsModern",
+    "MixinSchematicBrowserScreenModern",
+    "MixinSchematicEntryWidgetModern",
+    "MixinPerfDispatcher",
+    "MixinPerfWorker",
+    "MixinPerfRenderChunk",
+    "MixinPerfRenderGlobal",
+    "MixinPerfPlacementManager",
+    "MixinPerfPlacingUtils",
+    "MixinPerfLitematicaSchematic",
+    "MixinPerfLoadedSchematic",
+    "MixinPerfVboRenderList",
+    "MixinPerfDisplayRenderList",
+    "IMixinVertexBuffer",
+    "IMixinVanillaWrappingVertexBuilder",
+    "IMixinTaskBase",
+    "IMixinTaskProcessChunkBase",
+    "IMixinTaskFillArea",
+    "IMixinLocalCreateSchematicTask",
+    "IMixinTaskPasteSchematicPerChunkBase",
+    "IMixinTaskPasteSchematicPerChunkCommand"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "refmap": "mixins.litematica_upgraded.refmap.json"
+}

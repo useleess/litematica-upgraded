@@ -1,0 +1,8 @@
+litematica.error.area_selection.grow.no_sub_region_selected=No sub-region is selected to grow
+litematica.hud.status_info.easy_place_mode_enabled=Easy Place mode enabled
+litematica.hud.task_name.local_create_schematic=Creating schematic from selection
+litematica.message.error.invalid_block=Invalid block: %s
+litematica.message.error.schematic_read.vanilla.failed_to_read_block_pos=Failed to read a block position from the vanilla schematic
+litematica.message.error.schematic_read.vanilla.failed_to_read_palette=Failed to read the palette from the vanilla schematic
+litematica.message.error.schematic_save.convert_data.sponge_array_size_overflow=Sponge schematic array is too large (%s entries)
+litematica.message.error.schematic_save_interrupted=Saving the schematic was interrupted

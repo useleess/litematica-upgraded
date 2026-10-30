@@ -1,0 +1,3 @@
+# <upstream path> | <reason>   (Java files with no Forge meaning; at most 10)
+litematica/compat/modmenu/ModMenuImpl.java | ModMenu is a Fabric/Quilt API; Forge's config button is not ported yet
+malilib/compat/modmenu/ModMenuImpl.java | ModMenu is a Fabric/Quilt API; Forge's config button is not ported yet

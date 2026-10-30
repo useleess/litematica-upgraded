@@ -1,0 +1,176 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:3.+'
+    classpath 'org.ow2.asm:asm:9.4'
+    classpath 'org.ow2.asm:asm-commons:9.4'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle'
+
+version = '0.1.0'
+group = 'com.useleess.litematicaupgraded'
+archivesBaseName = 'litematica_upgraded-1.12.2'
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8'
+
+minecraft {
+    mappings channel: 'stable', version: '39-1.12'
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            // -PrunDir=<folder>: run in a throwaway folder (each test run its own) instead of run/
+            if (project.hasProperty('runDir')) workingDirectory project.file(project.property('runDir'))
+            property 'forge.logging.console.level', 'info'
+        }
+    }
+}
+
+repositories {
+    // MixinBooter: the Mixin loader players install next to this mod (user OK 2026-10-28)
+    maven { url = 'https://maven.cleanroommc.com' }
+    // the Mixin annotation processor (writes the refmaps)
+    maven { url = 'https://repo.spongepowered.org/maven' }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
+    compileOnly 'zone.rong:mixinbooter:11.18'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    testCompile 'junit:junit:4.13.2'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+jar {
+    // MixinBooter (11.x) reads the mixin configs from this manifest attribute; no coremod needed
+    manifest.attributes('MixinConfigs': 'mixins.litematica.json,mixins.malilib.json,mixins.litematica_upgraded.json')
+    // the refmaps (SRG names for production), written by the Mixin annotation processor during compileJava
+    from("$buildDir/mixin-refmap/out") { include '*.refmap.json' }
+    finalizedBy 'reobfJar'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+// MCP -> SRG names for the Mixin annotation processor: ForgeGradle's TSRG file turned into the SRG format it reads.
+def srgFile = "$buildDir/mixin-refmap/mcp-to-srg.srg"
+task mcpToSrgForMixin {
+    dependsOn 'createMcpToSrg'
+    outputs.file srgFile
+    doLast {
+        def lines = []
+        def owner = null
+        tasks.getByName('createMcpToSrg').output.eachLine { l ->
+            if (!l.startsWith('\t')) {
+                def p = l.split(' ')
+                owner = p[0]
+                lines << "CL: ${p[0]} ${p[1]}".toString()
+            } else {
+                def p = l.trim().split(' ')
+                if (p.length == 2) lines << "FD: ${owner}/${p[0]} ${owner}/${p[1]}".toString()
+                else lines << "MD: ${owner}/${p[0]} ${p[1]} ${owner}/${p[2]} ${p[1]}".toString()
+            }
+        }
+        file(srgFile).parentFile.mkdirs()
+        file(srgFile).text = lines.join('\n') + '\n'
+    }
+}
+
+compileJava {
+    dependsOn mcpToSrgForMixin
+    inputs.file srgFile
+    options.compilerArgs += ['-AdefaultObfuscationEnv=searge', "-AreobfSrgFile=${srgFile}".toString(),
+                             "-AoutRefMapFile=${buildDir}/mixin-refmap/merged.refmap.json".toString()]
+    doLast {
+        // one refmap holds every mixin class's entries; both configs name their own copy of it
+        def merged = file("$buildDir/mixin-refmap/merged.refmap.json")
+        if (!merged.exists()) throw new GradleException('The Mixin processor wrote no refmap')
+
+        // Production needs each @Shadow field of a mixin class to carry its SRG name (the game's classes have no MCP names, and
+        // Mixin takes shadow names from the mixin class itself, not the refmap). The Mixin processor does not write them out,
+        // so rename those fields (and their uses inside the mixin class) in the compiled classes from the SRG file.
+        def fieldSrg = [:]
+        file(srgFile).eachLine { l -> if (l.startsWith('FD: ')) { def p = l.split(' '); fieldSrg[p[1]] = p[2].substring(p[2].lastIndexOf('/') + 1) } }
+        def renamedCount = 0
+        destinationDir.eachFileRecurse { f ->
+            if (!f.name.endsWith('.class')) return
+            def self = null
+            def targets = []
+            def shadows = []
+            new org.objectweb.asm.ClassReader(f.bytes).accept(new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                void visit(int version, int access, String name, String sig, String superName, String[] ifaces) { self = name }
+                org.objectweb.asm.AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                    if (desc != 'Lorg/spongepowered/asm/mixin/Mixin;') return null
+                    return new org.objectweb.asm.AnnotationVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                        org.objectweb.asm.AnnotationVisitor visitArray(String name) {
+                            return new org.objectweb.asm.AnnotationVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                                void visit(String n, Object v) { if (name == 'value' && v instanceof org.objectweb.asm.Type) targets << ((org.objectweb.asm.Type) v).internalName }
+                            }
+                        }
+                    }
+                }
+                org.objectweb.asm.FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
+                    return new org.objectweb.asm.FieldVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                        org.objectweb.asm.AnnotationVisitor visitAnnotation(String d, boolean visible) {
+                            if (d == 'Lorg/spongepowered/asm/mixin/Shadow;') shadows << name
+                            return null
+                        }
+                    }
+                }
+            }, org.objectweb.asm.ClassReader.SKIP_CODE)
+            def renames = [:]
+            shadows.each { sh -> targets.each { t -> def srg = fieldSrg["${t}/${sh}".toString()]; if (srg != null) renames["${self}.${sh}".toString()] = srg } }
+            if (renames.isEmpty()) return
+            def writer = new org.objectweb.asm.ClassWriter(0)
+            new org.objectweb.asm.ClassReader(f.bytes).accept(
+                new org.objectweb.asm.commons.ClassRemapper(writer, new org.objectweb.asm.commons.SimpleRemapper(renames)), 0)
+            f.bytes = writer.toByteArray()
+            renamedCount += renames.size()
+        }
+        println "Mixin shadow fields renamed to SRG: ${renamedCount}"
+        ['litematica', 'malilib', 'litematica_upgraded'].each { n ->
+            copy { from merged; into "$buildDir/mixin-refmap/out"; rename { "mixins.${n}.refmap.json".toString() } }
+        }
+    }
+}
+
+// The in-world tests (src/selftest, never in the release jar): a client-only second mod, built as its own jar
+// next to the real one. It does nothing unless the game runs with -Dlitematicaupgraded.selftest=client
+// (tools/ingame.ps1 does that). ./gradlew selftestJar -> build/libs/litematica_upgraded-1.12.2-<version>-selftest.jar
+sourceSets {
+    selftest {
+        java.srcDir 'src/selftest/java'
+        resources.srcDir 'src/selftest/resources'
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
+task selftestJar(type: Jar) {
+    classifier = 'selftest'
+    from sourceSets.selftest.output
+}
+reobf { selftestJar { } }
+selftestJar.finalizedBy('reobfSelftestJar')
+// The renamer only maps a game method called through one of the mod's classes (malilib BlockPos.getX(), a litematica
+// CompiledChunk subclass ...) when it can see that class's parents: give it the mod's own (MCP-named) classes too.
+tasks.matching { it.name == 'reobfSelftestJar' }.all { t ->
+    t.dependsOn 'classes'
+    t.doFirst { t.classpath = (t.classpath ?: files()) + sourceSets.main.output }
+}

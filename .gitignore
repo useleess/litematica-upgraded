@@ -1,0 +1,42 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# other
+eclipse
+run
+
+# Files from Forge MDK
+forge*changelog.txt
+
+# local only
+logs
+schematics
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+run-*
+schematica-test-shots/
+run/
+run-*/
+.check-box.log
+.check-smoke.log
+build-smoke/
+.check-ingame.log
+build-ingame/
+.base-plan.json
+_optifine/

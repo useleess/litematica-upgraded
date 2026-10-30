@@ -1,0 +1,325 @@
+{
+ "_comment": "Test plan (project rule 'Every mod from day one'): each feature needs at least `min` DIFFERENT passing tests whose id starts with `prefix`. A new feature = a new line here in the same change. Never lower a min or remove a line to get a push through. Forge 1.12.2.",
+ "features": [
+  {
+   "prefix": "port/",
+   "min": 3,
+   "what": "Forge port: upstream code complete and relocated, no Ornithe/Fabric code, game reaches the main menu with every mixin applied; every mixin target class loads with its mixin"
+  },
+  {
+   "prefix": "ui/",
+   "min": 4,
+   "what": "Litematica + malilib screens open in a world (main menu, config, schematic browser, loaded schematics list), found by name"
+  },
+  {
+   "prefix": "schematic/",
+   "min": 4,
+   "what": "load .litematic files, create placements, block counts and positions match the file"
+  },
+  {
+   "prefix": "render/",
+   "min": 2,
+   "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks"
+  },
+  {
+   "prefix": "selection/",
+   "min": 3,
+   "what": "area selections: corners, boxes, sizes"
+  },
+  {
+   "prefix": "save/",
+   "min": 2,
+   "what": "save a selection as .litematic and read it back identical"
+  },
+  {
+   "prefix": "harness/",
+   "min": 2,
+   "what": "selftest harness: pop-up guard dismisses known screens, watchdog fails a hung test fast"
+  },
+  {
+   "prefix": "lang/",
+   "min": 3,
+   "what": "translations load in game: Litematica + malilib keys resolve (I18n), screen buttons show real text not keys, no key used in code is missing from en_us.lang"
+  },
+  {
+   "prefix": "printer/place/",
+   "min": 6,
+   "what": "printer places the placed schematic's blocks around the player (survival, items from the inventory), range limit, only missing blocks, nothing outside the placement"
+  },
+  {
+   "prefix": "printer/rotation/",
+   "min": 12,
+   "what": "directional blocks end up exactly as in the schematic on a server WITHOUT any server mod (fake rotation/position): pistons, observers, dispensers, droppers, stairs, slabs, logs, rails, repeaters, comparators, levers, buttons, hoppers, chests"
+  },
+  {
+   "prefix": "printer/order/",
+   "min": 3,
+   "what": "redstone-aware order: blocks a component depends on come first; components that would fire / update early are placed last"
+  },
+  {
+   "prefix": "printer/mining/",
+   "min": 2,
+   "what": "hand-mining keeps working while the printer is on; printer pauses for the mined spot"
+  },
+  {
+   "prefix": "printer/config/",
+   "min": 3,
+   "what": "printer settings in the config screen (Litematica Upgraded tab), toggle hotkey, values saved + range-limited"
+  },
+  {
+   "prefix": "easyplace/",
+   "min": 4,
+   "what": "Litematica's Easy Place places directional blocks facing the schematic's way on a server without the mod"
+  },
+  {
+   "prefix": "title/",
+   "min": 1,
+   "what": "Litematica screens show the real version, not '?'"
+  },
+  {
+   "prefix": "easyplace/plain/",
+   "min": 2,
+   "what": "Litematica's normal Easy Place (fake rotation OFF) still works as upstream: places the schematic block where you aim, refuses wrong spots"
+  },
+  {
+   "prefix": "printer/break/",
+   "min": 3,
+   "what": "printer mines blocks the placement wants gone (wrong block, wrong state, extra block) with real survival mining; never touches blocks outside the placement or that are right"
+  },
+  {
+   "prefix": "printer/tool/",
+   "min": 2,
+   "what": "best tool picked from the inventory for mining; hoe tills farmland, flint and steel lights portals"
+  },
+  {
+   "prefix": "printer/scaffold/",
+   "min": 1,
+   "what": "fence gate over air: temporary block under it, gate, scaffold mined away again"
+  },
+  {
+   "prefix": "printer/fill/",
+   "min": 2,
+   "what": "hopper/dropper/dispenser filters filled with the schematic's items into the right slots; slots with other items left alone"
+  },
+  {
+   "prefix": "printer/fluid/",
+   "min": 2,
+   "what": "water/lava sources placed with buckets; water from ice where enabled"
+  },
+  {
+   "prefix": "printer/snow/",
+   "min": 1,
+   "what": "snow layers built up to the schematic's count"
+  },
+  {
+   "prefix": "printer/sign/",
+   "min": 1,
+   "what": "sign text pasted from the schematic sign"
+  },
+  {
+   "prefix": "printer/destroy/",
+   "min": 1,
+   "what": "destroy assist: holding attack on a wrong block mines only blocks the placement wants gone"
+  },
+  {
+   "prefix": "printer/area/",
+   "min": 2,
+   "what": "printer limited to a chosen area / layer range; nothing placed outside it"
+  },
+  {
+   "prefix": "printer/stop/",
+   "min": 1,
+   "what": "printer stops after the player dies"
+  },
+  {
+   "prefix": "server/load/",
+   "min": 1,
+   "what": "the same jar loads on a Forge 1.12.2 dedicated server (no client classes touched) and a client joining it sees the server part"
+  },
+  {
+   "prefix": "server/admin/",
+   "min": 3,
+   "what": "admins switch the printer off/on for everyone: server config option + live op command; the client printer stops and cannot be turned on while off (with a translated message); non-ops cannot use the command"
+  },
+  {
+   "prefix": "server/accurate/",
+   "min": 3,
+   "what": "accurate placement: with the server part, the printer places blocks with the schematic's facing/half/axis/delay/mode in one click, incl. cases fake rotation cannot do (piston facing down on the ground)"
+  },
+  {
+   "prefix": "server/air/",
+   "min": 1,
+   "what": "air placement: fence gate over air placed directly by the server part (no scaffold)"
+  },
+  {
+   "prefix": "server/range/",
+   "min": 2,
+   "what": "extended printer reach with the server part (config range, server-checked); without it the vanilla reach is kept"
+  },
+  {
+   "prefix": "server/shulker/",
+   "min": 2,
+   "what": "shulker restock: printer takes needed items from shulker boxes in the inventory (server option)"
+  },
+  {
+   "prefix": "server/fallback/",
+   "min": 1,
+   "what": "on a server without the mod every server feature reports off and the printer still works client-only"
+  },
+  {
+   "prefix": "server/save/",
+   "min": 3,
+   "what": "saving an area with the server part: the server reads the blocks (full NBT: container contents, signs, entities; also chunks the client has not loaded) and sends the schematic to the client; result read back identical to the world"
+  },
+  {
+   "prefix": "server/paste/",
+   "min": 3,
+   "what": "pasting a placement with the server part: uploaded and placed by the server with full NBT (container items, sign text, entities) in one go, big pastes spread over ticks; result checked block by block"
+  },
+  {
+   "prefix": "server/edit/",
+   "min": 3,
+   "what": "Litematica's fill / replace / delete area tools run through the server part with the exact result"
+  },
+  {
+   "prefix": "server/move/",
+   "min": 1,
+   "what": "moving an area's contents with the server part: everything (incl. NBT) ends up at the new spot, the old spot is cleared"
+  },
+  {
+   "prefix": "server/permission/",
+   "min": 3,
+   "what": "server options for saving and for edits (on/off) and who may edit (creative + op level): refused players get a translated message and nothing changes; without the server part Litematica's own command-based paste still works"
+  },
+  {
+   "prefix": "server/limits/",
+   "min": 2,
+   "what": "upload size cap, one running edit per player, progress shown and an edit can be cancelled"
+  },
+  {
+   "prefix": "convert/litematic/",
+   "min": 3,
+   "what": "modern .litematic files (saved by Litematica on 1.13+: e.g. 1.13, 1.16, 1.20+ data versions) load in Litematica's own browser with every block converted to its 1.12 block + state"
+  },
+  {
+   "prefix": "convert/sponge/",
+   "min": 2,
+   "what": "Sponge .schem files (v2 and v3, WorldEdit 1.13+) load with blocks converted"
+  },
+  {
+   "prefix": "convert/structure/",
+   "min": 1,
+   "what": "vanilla structure .nbt files from 1.13+ load with blocks converted"
+  },
+  {
+   "prefix": "convert/states/",
+   "min": 6,
+   "what": "states come out right after conversion: facing, slab type/half, stairs shape, redstone (repeater delay, comparator mode, wire), log axis, flattened colours/variants (wool, planks, stone kinds)"
+  },
+  {
+   "prefix": "convert/nbt/",
+   "min": 3,
+   "what": "tile entities and entities are downgraded: container items (modern item ids + counts), sign text (JSON text), entities; printer / paste get them"
+  },
+  {
+   "prefix": "convert/missing/",
+   "min": 4,
+   "what": "blocks 1.12 does not have: the missing-blocks window opens when the file is loaded (never when joining a world), prefilled with guesses / saved picks; 'Use these' overwrites the file on disk (.schem -> same-name .litematic, the .schem deleted) so the window does not open again; picks saved globally"
+  },
+  {
+   "prefix": "convert/inventories/",
+   "min": 1,
+   "what": "ONE modern schematic with every container type (hopper, furnace, dispenser, dropper, brewing stand, chest, trapped chest, barrel, shulker box, jukebox record, item frame, armor stand) converts with every slot's item, count and damage kept; furnaces load cold (no burn/cook progress)"
+  },
+  {
+   "prefix": "perf/threads/",
+   "min": 2,
+   "what": "schematic chunks are built on background threads (not the render thread); the result is the same as a single-thread build (same blocks / quads), no crash or race under fast camera moves and placement edits"
+  },
+  {
+   "prefix": "perf/nostutter/",
+   "min": 1,
+   "what": "standing inside a big placement: no chunk rebuilds on the render thread (render-thread build time per frame near 0)"
+  },
+  {
+   "prefix": "perf/slices/",
+   "min": 1,
+   "what": "empty 16-high slices of a chunk column are skipped when building (counted), nothing visible is missing"
+  },
+  {
+   "prefix": "perf/copy/",
+   "min": 1,
+   "what": "fast placement copy of a big schematic gives the same blocks as the plain copy (its time is printed, not judged)"
+  },
+  {
+   "prefix": "perf/ghost/",
+   "min": 2,
+   "what": "ghost move: while a placement is moved, built chunks are drawn shifted without rebuilding; after it settles the real rebuild replaces them; rotate / mirror take the normal path"
+  },
+  {
+   "prefix": "perf/sparse/",
+   "min": 3,
+   "what": "huge mostly-empty schematics: memory only for sections that hold blocks (no air processed), a 24M and a 640M cell box load, place and render with a handful of render pieces; out-of-memory shows a message instead of crashing"
+  },
+  {
+   "prefix": "perf/config/",
+   "min": 1,
+   "what": "speed settings in the Litematica Upgraded tab (on/off, thread count), applied live"
+  },
+  {
+   "prefix": "perf/batch/",
+   "min": 2,
+   "what": "fewer, bigger draw jobs: schematic pieces grouped so draw calls per frame drop clearly, same picture"
+  },
+  {
+   "prefix": "perf/translucent/",
+   "min": 1,
+   "what": "see-through blocks are re-sorted only after the camera moved a real distance, not every frame"
+  },
+  {
+   "prefix": "perf/workers/",
+   "min": 1,
+   "what": "background build workers scale with CPU cores (cores-1, at least 1, one core always left for the game, never above Litematica's memory limit, setting to override)"
+  },
+  {
+   "prefix": "perf/far/",
+   "min": 2,
+   "what": "far-away pieces drawn with less detail; switches itself off on low-memory PCs"
+  },
+  {
+   "prefix": "perf/movefull/",
+   "min": 3,
+   "what": "while a placement moves a complete copy (every block, no world comparison) is shown, so blocks matching the world stay visible; on stop it swaps back to the normal copy with overlay colours; kept until the placement is deselected"
+  },
+  {
+   "prefix": "perf/budget/",
+   "min": 3,
+   "what": "complete copy memory limit: auto from free graphics memory (1/4) or 128 MB when the card cannot report it, skipped when Java memory is low, dropped first when memory is tight, nearest pieces first, slider/off setting"
+  },
+  {
+   "prefix": "perf/vbo/",
+   "min": 1,
+   "what": "everything works with Minecraft's Use VBOs setting off"
+  },
+  {
+   "prefix": "perf/optifine/",
+   "min": 2,
+   "what": "with OptiFine 1.12.2 HD U G5: the game loads, a big placement draws, moving works, no errors"
+  },
+  {
+   "prefix": "import/keys/",
+   "min": 1,
+   "what": "one-time copy of keybinds from LiteLoader Litematica, Schematica Upgraded and old Schematica (options.txt): a copied key triggers its action in game"
+  },
+  {
+   "prefix": "import/settings/",
+   "min": 1,
+   "what": "one-time copy of settings from LiteLoader Litematica and Schematica Upgraded: a copied setting is active; values outside limits skipped"
+  },
+  {
+   "prefix": "import/once/",
+   "min": 1,
+   "what": "the copy runs once: chat line shown once, flag set, a second start copies nothing; options the player changed are never overwritten"
+  }
+ ]
+}
