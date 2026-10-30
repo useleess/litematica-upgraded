@@ -1,7 +1,8 @@
 # Litematica Upgraded
 
 Litematica for **Forge 1.12.2**, with a printer, server-side support and more. Needs
-[MixinBooter](https://github.com/CleanroomMC/MixinBooter) 11.18 or newer (tested with 11.18 and 12.2).
+[MixinBooter](https://github.com/CleanroomMC/MixinBooter) 11.18 or newer (tested with 11.18 and 12.2). With **LiteLoader** installed (e.g. for masa's LiteLoader Tweakeroo / MiniHUD) you do
+**not** install MixinBooter: the mod uses LiteLoader's own Mixin.
 
 The same jar also runs on a Forge 1.12.2 dedicated server (with MixinBooter): it then gives the printer accurate placement, server-side saving, paste, fill, replace, delete and move (full NBT),
 air placement, extended reach and shulker restock, and operators can switch the printer off for everybody with
@@ -11,11 +12,15 @@ Schematics saved on Minecraft 1.13 and newer (`.litematic`, Sponge `.schem`, van
 
 ## Credits and licences
 
+- **Translations**: where our text matches masa's newer Litematica / malilib, their community translators' work is
+  reused (LGPL-3.0, via sakura-ryoko's Litematica / malilib); the rest is machine-translated. Fixes welcome on Discord.
 - **Litematica** and **malilib** by masa (maruohon) - https://github.com/maruohon/litematica,
   https://github.com/maruohon/malilib - LGPL-3.0. This mod is built from their 1.12.2 code (`ornithe/1.12.2`
   branches), moved to Forge; the changes are in this repository's history. Licence: [LICENSE.txt](LICENSE.txt).
 - **Printer**, the newer-version schematic converter and other additions come from our Schematica Upgraded, built on
-  **Schematica** by Lunatrius and **Schematica Plus** by HackerRouter (MIT).
+  **Schematica** by Lunatrius and **Schematica Plus** by HackerRouter (MIT, licence text:
+  [src/main/resources/META-INF/LICENSE-MIT-Schematica.txt](src/main/resources/META-INF/LICENSE-MIT-Schematica.txt),
+  also inside the jar).
 - **Speed-ups** (threaded chunk builds, skipped empty slices, fast placement copy, ghost move, F3 numbers) come from our
   **Litematica Turbo** (Useleess); the sparse storage of huge, mostly empty schematics and the memory budget come from our
   Schematica Upgraded (**Schematica** by Lunatrius, **Schematica Plus** by HackerRouter, MIT). Every one has a setting in the

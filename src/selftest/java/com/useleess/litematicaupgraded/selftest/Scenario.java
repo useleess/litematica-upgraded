@@ -101,6 +101,8 @@ final class Scenario {
         PrinterConfigs.RANGE.setIntegerValue(range);
         PrinterConfigs.BLOCKS_PER_TICK.setIntegerValue(perTick);
         Printer.PLACED.clear();
+        // sites repeat every 6 tests: a container filled at this spot by an earlier test must not count
+        Printer.FILLED.clear();
         command(mc, "gamemode survival");
         command(mc, "clear @s");
         // items dropped by an earlier test on this site (a hopper would suck them up)
@@ -122,6 +124,11 @@ final class Scenario {
         LoadedSchematic loaded = LoadedSchematic.tryLoadSchematic(file).orElseThrow(() -> new IllegalStateException("cannot load the test schematic"));
         placement = SchematicPlacement.create(loaded, new com.useleess.litematicaupgraded.malilib.util.position.BlockPos(sx, 101, sz), "selftest-" + id, true);
         DataManager.getSchematicPlacementManager().addSchematicPlacement(placement, false);
+    }
+
+    /** The test's placement (null once the test is over). */
+    SchematicPlacement placement() {
+        return placement;
     }
 
     private void giveItems(Minecraft mc) {

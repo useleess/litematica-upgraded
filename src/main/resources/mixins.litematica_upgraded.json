@@ -3,7 +3,7 @@
   "package": "com.useleess.litematicaupgraded.mixin",
   "plugin": "com.useleess.litematicaupgraded.compat.OptifineMixinPlugin",
   "compatibilityLevel": "JAVA_8",
-  "minVersion": "0.8",
+  "minVersion": "0.7.5",
   "client": [
     "MixinPlayerControllerMPFakeRotation",
     "MixinEasyPlaceUtilsUseAction",
@@ -13,6 +13,8 @@
     "MixinDataFileUtilsModern",
     "MixinSchematicBrowserScreenModern",
     "MixinSchematicEntryWidgetModern",
+    "MixinMaterialListEntryWidgetReplace",
+    "IMixinMaterialListPlacement",
     "MixinPerfDispatcher",
     "MixinPerfWorker",
     "MixinPerfRenderChunk",

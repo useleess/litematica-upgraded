@@ -1,7 +1,8 @@
 # Litematica Upgraded
 
 **Litematica for Forge 1.12.2** - masa's schematic mod, moved to Forge, with a printer, server support and a lot more
-speed. Needs [MixinBooter](https://modrinth.com/mod/mixinbooter) (11.18 or newer).
+speed. Needs [MixinBooter](https://modrinth.com/mod/mixinbooter) (11.18 or newer) - only when LiteLoader is not installed;
+next to LiteLoader, don't install MixinBooter (the mod uses LiteLoader's Mixin).
 
 ## What you get
 
@@ -29,9 +30,10 @@ server with full block data. Operators can switch the printer off for everyone:
 ## Credits
 
 - **Litematica** and **malilib** by masa (LGPL-3.0) - this mod is built from their 1.12.2 code.
-- Printer and converter from **Schematica Upgraded**, built on **Schematica** by Lunatrius and **Schematica Plus** by
+- Printer and converter from our earlier **Schematica Upgraded**, built on **Schematica** by Lunatrius and **Schematica Plus** by
   HackerRouter (MIT).
 - Speed-ups from **Litematica Turbo**.
 - **MixinBooter** by CleanroomMC (separate download).
+- Translations partly from the translators of masa's Litematica and malilib; the rest machine-translated (fixes welcome on Discord).
 
 Bugs and ideas: [our Discord](https://discord.gg/fkNcMPTPuy).

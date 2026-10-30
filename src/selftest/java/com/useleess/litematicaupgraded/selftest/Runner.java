@@ -37,6 +37,8 @@ public final class Runner {
     private static final String[] PLAIN_TOO = {"server/permission/fallback-"};
     /** The tests of the "optifine" phase (a plain server, OptiFine HD U G5 in the client). */
     static final String OPTIFINE_PREFIX = "perf/optifine/";
+    /** The tests of the "liteloader" phase (a plain server, Forge + LiteLoader and no MixinBooter in the client). */
+    static final String LITELOADER_PREFIX = "compat/liteloader/";
     private static final int JOIN_TICKS = 20 * 600;
     private static final int SETTLE_TICKS = 60;
 
@@ -100,6 +102,7 @@ public final class Runner {
     /** Whether a test belongs to this run's phase. */
     static boolean inPhase(String id, String phase) {
         // the OptiFine phase (a plain server, OptiFine in the client) runs only its own short tests, and only there
+        if ("liteloader".equals(phase) || id.startsWith(LITELOADER_PREFIX)) return "liteloader".equals(phase) && id.startsWith(LITELOADER_PREFIX);
         if ("optifine".equals(phase) || id.startsWith(OPTIFINE_PREFIX)) return "optifine".equals(phase) && id.startsWith(OPTIFINE_PREFIX);
         boolean forgeOnly = false;
         for (String prefix : FORGE_ONLY) forgeOnly |= id.startsWith(prefix);

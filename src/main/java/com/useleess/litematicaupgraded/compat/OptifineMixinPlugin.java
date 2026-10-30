@@ -76,4 +76,11 @@ public final class OptifineMixinPlugin implements IMixinConfigPlugin {
     @Override
     public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
     }
+
+    // Mixin 0.7 (LiteLoader) calls these two with its own shaded ClassNode; the methods above are the Mixin 0.8 (MixinBooter) ones.
+    public void preApply(String targetClassName, org.spongepowered.asm.lib.tree.ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+    }
+
+    public void postApply(String targetClassName, org.spongepowered.asm.lib.tree.ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+    }
 }

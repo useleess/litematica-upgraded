@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.concurrent.ThreadFactory;
@@ -29,6 +28,7 @@ import net.minecraft.client.renderer.chunk.RenderChunk;
 import net.minecraft.util.BlockRenderLayer;
 
 import com.useleess.litematicaupgraded.malilib.render.buffer.VertexBuilder;
+import com.useleess.litematicaupgraded.malilib.util.MathUtils;
 import com.useleess.litematicaupgraded.litematica.render.schematic.ChunkCompileTaskGeneratorSchematic;
 import com.useleess.litematicaupgraded.litematica.render.schematic.ChunkRenderWorkerLitematica;
 import com.useleess.litematicaupgraded.litematica.render.schematic.RenderChunkSchematicVbo;
@@ -60,9 +60,10 @@ public abstract class MixinPerfDispatcher implements PerfDispatcher
      * The thread count Litematica picks for itself (the CPU count, limited by memory). The setting replaces it when it is not
      * automatic (0); Litematica only starts worker threads for a count above 1, so 1 means "builds on the render thread".
      */
-    @ModifyVariable(method = "<init>", at = @At("STORE"), index = 2)
-    private int perf$threadCount(int original)
+    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/useleess/litematicaupgraded/malilib/util/MathUtils;clamp(III)I", ordinal = 0))
+    private int perf$threadCount(int value, int min, int max)
     {
+        int original = MathUtils.clamp(value, min, max);
         int wanted = PerfConfigs.BUILD_THREADS.getIntegerValue();
         return wanted > 0 ? wanted : PerfConfigs.AUTO_WORKERS.getBooleanValue() ? PerfMath.workers(perf$cores(), PerfMath.memoryThreadCap(Runtime.getRuntime().maxMemory())) : original;
     }
@@ -122,7 +123,7 @@ public abstract class MixinPerfDispatcher implements PerfDispatcher
 
         try
         {
-            BufferBuilder buffer = ((IMixinVanillaWrappingVertexBuilder) builder).perf$getBuffer();
+            BufferBuilder buffer = com.useleess.litematicaupgraded.compat.InterfaceAccess.bufferOf(builder);
 
             if (list < 0)
             {

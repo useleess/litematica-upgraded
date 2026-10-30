@@ -48,6 +48,11 @@ public final class Printer {
     /** The containers whose filter items were filled in so far (for tests); the newest 256. */
     public static final List<BlockPos> FILLED = ContainerFiller.FILLED;
 
+    /** How the last container fill ended: "filled at ..." or why it stopped early (tests). */
+    public static String lastFillEnd() {
+        return ContainerFiller.lastEnd;
+    }
+
     private final Map<Long, Long> cooldowns = new HashMap<>();
     /** Positions waiting for an item (until-tick, tier): they keep holding the higher tiers back while they rest. */
     private final Map<Long, long[]> noItem = new HashMap<>();

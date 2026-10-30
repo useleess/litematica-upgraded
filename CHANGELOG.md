@@ -1,5 +1,13 @@
 # Litematica Upgraded changelog
 
+## 0.2.0 - 2026-10-30
+
+- Works next to LiteLoader: don't install MixinBooter there (the mod uses LiteLoader's Mixin). Without LiteLoader, MixinBooter is still needed; with neither, the game now says so clearly instead of crashing.
+- The MIT licence of the code that came from Schematica Upgraded (printer, converter, sparse storage) now ships in the jar (META-INF/LICENSE-MIT-Schematica.txt).
+- Material list: every row of a placement's material list has a Replace button - pick another block and every block of that kind in the placement becomes it (stairs keep their facing and half; ghost blocks, verifier, printer and counts follow at once). The schematic file only changes when you save it; replace back to undo.
+- The printer's Fill Containers now also fills chests, trapped chests (double chests too), furnaces (input and fuel), brewing stands and shulker boxes.
+- In 13 languages: Chinese (simplified and traditional), Russian, Ukrainian, Spanish, French, Italian, Portuguese (Brazil), Japanese, Korean, Swedish, Turkish and German.
+
 ## 0.1.0 (beta) - 2026-10-30
 
 First public beta: masa's **Litematica 0.40.1 + malilib 0.60.2 for Forge 1.12.2** (needs MixinBooter 11.18 or newer;

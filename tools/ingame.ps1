@@ -3,7 +3,8 @@
 #   forge: a throwaway Forge 1.12.2 dedicated server WITH the mod (installed by the Forge installer into the phase's own
 #          folder) - the server/ tests;
 #   optifine: the plain server again, OptiFine HD U G5 in the client mods (from _optifine/, never committed) - perf/optifine/.
-# Each phase: a throwaway Prism instance with Forge + MixinBooter + the reobf'd mod jar + the selftest jar (never
+#   liteloader: the plain server again, the client = Forge + LiteLoader (Prism component) and NO MixinBooter - compat/liteloader/.
+# Each phase: a throwaway Prism instance with Forge + MixinBooter (not in the liteloader phase) + the reobf'd mod jar + the selftest jar (never
 # released) joins the server and runs the in-world tests (-Dlitematicaupgraded.selftest.phase picks the tests). The
 # selftest prints SCOPE-TEST lines into the game log and "SCOPE-TEST done" at the end. Both logs are joined into
 # _out/latest.log for tools/ingame_verdict.py; a phase that does not finish adds a failing line. Log + screenshots
@@ -41,10 +42,12 @@ public static class W {
 
 # Which phases the FILTER touches (no filter: both). server/fallback/ runs in the plain phase, the other server/ tests in the forge phase.
 function Wants([string]$id) { return (-not $filter) -or $id.StartsWith($filter) -or $filter.StartsWith($id) }
-$runPlain = (-not $filter) -or (-not $filter.StartsWith('server/')) -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
+$runPlain = (-not $filter) -or ((-not $filter.StartsWith('server/')) -and (-not $filter.StartsWith('compat/liteloader/'))) -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
 $runForge = (-not $filter) -or (Wants 'server/')
 # Phase 3 (short): the plain server again, with OptiFine in the client (tools/check-ingame.sh puts its jar in _optifine/; it is never committed).
 $runOptifine = (-not $filter) -or (Wants 'perf/optifine/')
+# Phase 4 (short): the plain server again, the client runs Forge + LiteLoader and has NO MixinBooter (LiteLoader's own Mixin).
+$runLiteloader = (-not $filter) -or (Wants 'compat/liteloader/')
 $optifineJar = Get-ChildItem "$here\_optifine\OptiFine_*.jar" -EA 0 | Select -First 1
 
 # The test player's offline-mode uuid and name (whatever account Prism logs in with): op on the test servers, so tests can use /gamemode, /give, /setblock ...
@@ -113,8 +116,14 @@ function Invoke-Phase([string]$phase) {
     New-Item -ItemType Directory -Force "$mc\mods" | Out-Null
     $jars | % { Copy-Item $_.FullName "$mc\mods\" }
     if ($phase -eq 'optifine') { Copy-Item $optifineJar.FullName "$mc\mods\" }
-    Invoke-WebRequest (MixinBooterUrl $phase) -OutFile "$mc\mods\mixinbooter.jar" -UseBasicParsing
+    if ($phase -ne 'liteloader') { Invoke-WebRequest (MixinBooterUrl $phase) -OutFile "$mc\mods\mixinbooter.jar" -UseBasicParsing }
     Copy-Item "$instRoot\1.12 testing\mmc-pack.json" "$dir\mmc-pack.json"
+    if ($phase -eq 'liteloader') {
+      # LiteLoader as a Prism component after Forge (Prism fetches it into its own cache; its Mixin is the only one in the game)
+      $pack = Get-Content "$dir\mmc-pack.json" -Raw | ConvertFrom-Json
+      $pack.components = @($pack.components) + [pscustomobject]@{ cachedName = 'LiteLoader'; cachedVersion = '1.12.2-SNAPSHOT'; uid = 'com.mumfrey.liteloader'; version = '1.12.2-SNAPSHOT' }
+      $pack | ConvertTo-Json -Depth 10 | Set-Content "$dir\mmc-pack.json" -Encoding ascii
+    }
     $jvm = "-Dlitematicaupgraded.selftest=client -Dlitematicaupgraded.selftest.phase=$phase -Dlitematicaupgraded.selftest.join=127.0.0.1:$port"
     if ($env:FILTER) { $jvm += " -Dlitematicaupgraded.selftest.filter=$($env:FILTER)" }
     @"
@@ -175,11 +184,12 @@ $script:phaseDone = @{}
 if ($runPlain) { Invoke-Phase 'plain' }
 if ($runForge) { Invoke-Phase 'forge' }
 if ($runOptifine) { Invoke-Phase 'optifine' }
+if ($runLiteloader) { Invoke-Phase 'liteloader' }
 
 # One log for the verdict: the plain phase, then the forge phase, then the lines only this script can judge.
 $extra = New-Object System.Collections.Generic.List[string]
-foreach ($phase in @('plain', 'forge', 'optifine')) {
-  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'optifine' -and $runOptifine)) {
+foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader')) {
+  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'optifine' -and $runOptifine) -or ($phase -eq 'liteloader' -and $runLiteloader)) {
     if (-not $script:phaseDone[$phase]) { $extra.Add("SCOPE-TEST fail harness/phase-$phase :: the $phase phase did not finish") }
   }
 }
@@ -204,7 +214,7 @@ if ($runForge) {
   }
 }
 $parts = @()
-foreach ($phase in @('plain', 'forge', 'optifine')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
+foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
 ($parts + ($extra -join "`n")) -join "`n" | Set-Content "$out\latest.log" -Encoding UTF8
 if ($extra.Count) { $extra }
 'INGAME-END'

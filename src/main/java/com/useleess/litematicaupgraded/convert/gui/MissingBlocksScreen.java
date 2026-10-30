@@ -8,16 +8,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 
 import com.useleess.litematicaupgraded.convert.BlockStates;
 import com.useleess.litematicaupgraded.convert.MissingBlockGuesses;
 import com.useleess.litematicaupgraded.convert.MissingBlocks;
+import com.useleess.litematicaupgraded.gui.BlockPicker;
 import com.useleess.litematicaupgraded.malilib.gui.BaseListScreen;
-import com.useleess.litematicaupgraded.malilib.gui.BaseScreen;
-import com.useleess.litematicaupgraded.malilib.gui.StringListSelectionScreen;
 import com.useleess.litematicaupgraded.malilib.gui.widget.button.GenericButton;
 import com.useleess.litematicaupgraded.malilib.gui.widget.list.DataListWidget;
 import com.useleess.litematicaupgraded.malilib.gui.widget.list.entry.BaseDataListEntryWidget;
@@ -150,36 +148,8 @@ public class MissingBlocksScreen extends BaseListScreen<DataListWidget<MissingBl
 
     protected void openPicker(Row row)
     {
-        List<String> names = new ArrayList<>();
-        names.add("minecraft:air");
-
-        for (Object key : Block.REGISTRY.getKeys())
-        {
-            String name = key.toString();
-
-            if (name.equals("minecraft:air") == false)
-            {
-                names.add(name);
-            }
-        }
-
-        StringListSelectionScreen screen = new StringListSelectionScreen(names, selected -> {
-            if (selected.isEmpty() == false)
-            {
-                Block block = BlockStates.block(selected.iterator().next());
-
-                if (block != null)
-                {
-                    this.pick(row, block.getDefaultState());
-                }
-            }
-
-            BaseScreen.openScreen(this);
-        });
-        screen.setHasSearch(true);
-        screen.setTitle("litematica_upgraded.title.screen.missing_blocks.pick", MissingBlockGuesses.displayName(row.name));
-        screen.setParent(this);
-        BaseScreen.openScreen(screen);
+        BlockPicker.open(this, true, "litematica_upgraded.title.screen.missing_blocks.pick", MissingBlockGuesses.displayName(row.name),
+                         block -> this.pick(row, block.getDefaultState()));
     }
 
     @Override

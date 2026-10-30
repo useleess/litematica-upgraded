@@ -75,6 +75,6 @@ public abstract class MixinPerfVboRenderList extends ChunkRenderContainerSchemat
         BatchDraw.setupBlockPointers();
         vertexBuffer.drawArrays(GL11.GL_QUADS);
         GlStateManager.popMatrix();
-        DrawStats.draw(layer, ((IMixinVertexBuffer) vertexBuffer).perf$getCount());
+        DrawStats.draw(layer, com.useleess.litematicaupgraded.compat.InterfaceAccess.vertexCount(vertexBuffer));
     }
 }

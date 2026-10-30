@@ -60,6 +60,7 @@ import com.useleess.litematicaupgraded.litematica.selection.CornerDefinedBox;
 import com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler;
 import com.useleess.litematicaupgraded.litematica.world.WorldSchematic;
 import com.useleess.litematicaupgraded.malilib.gui.BaseScreen;
+import com.useleess.litematicaupgraded.printer.PrinterInit;
 import com.useleess.litematicaupgraded.malilib.gui.widget.button.GenericButton;
 import com.useleess.litematicaupgraded.malilib.util.position.IntBoundingBox;
 import com.useleess.litematicaupgraded.malilib.mixin.access.NBTTagLongArrayMixin;
@@ -311,6 +312,7 @@ final class Tests {
 
         // printer/, easyplace/, title/ (they set the player to survival, so they run last)
         PrinterTests.register(r);
+        MaterialTests.register(r);
         RemoteTests.register(r);
         ServerTests.register(r);
         ConvertTests.register(r);
@@ -331,6 +333,28 @@ final class Tests {
                 if (label.matches("(litematica|malilib)\\.[a-z0-9_.]+")) throw new AssertionError("a button shows the raw key " + label + "; " + langStatus(c.mc, "litematica"));
             }
             return true;
+        });
+        // lang/<language>/: the game switched to another of the 13 languages shows our settings screen in it (texts
+        // from that language's file of the jar, not English), then goes back to English for the tests after it
+        for (String language : new String[] {"de_de", "zh_cn"}) {
+            r.waitFor("lang/" + language + "/settings-screen-in-that-language", 400, c -> {
+                switchLanguage(c.mc, language);
+                BaseScreen.openScreen(ConfigScreen.createOnTab(PrinterInit.TAB));
+            }, c -> {
+                if (!(c.mc.currentScreen instanceof BaseScreen)) return false;
+                for (String[] key : TRANSLATED) {
+                    String want = langFile(key[0], language).get(key[1]);
+                    String english = langFile(key[0]).get(key[1]);
+                    c.check(want != null && !want.equals(english), key[1] + " has no " + language + " translation in the jar");
+                    c.check(I18n.format(key[1]).equals(want), key[1] + " shows '" + I18n.format(key[1]) + "', not the " + language + " text '" + want + "'");
+                }
+                Runner.shot(c.mc, "lang-" + language + "-settings");
+                return true;
+            });
+        }
+        r.add("lang/back-to-english", c -> {
+            switchLanguage(c.mc, "en_us");
+            for (String[] key : TRANSLATED) c.check(I18n.format(key[1]).equals(langFile(key[0]).get(key[1])), key[1] + " is not English again");
         });
 
         // harness/: the pop-up guard and the watchdog
@@ -561,10 +585,26 @@ final class Tests {
     }
 
     /** The domain's en_us.lang as the mod jar has it: key to English text. */
+    /** One key of each lang domain the language tests compare: our printer setting, Litematica's and malilib's texts. */
+    private static final String[][] TRANSLATED = {{"litematica_upgraded", "litematica_upgraded.config.name.printerenabled"},
+            {"litematica", "litematica.button.change_menu.schematic_manager"}, {"malilib", "malilib.button.config.reset_all_filtered"}};
+
+    /** Switches the game's language the way the language screen does, reloading only the translations. */
+    private static void switchLanguage(Minecraft mc, String code) {
+        mc.gameSettings.language = code;
+        mc.getLanguageManager().setCurrentLanguage(new net.minecraft.client.resources.Language(code, "", "", false));
+        mc.getLanguageManager().onResourceManagerReload(mc.getResourceManager());
+        mc.fontRenderer.setUnicodeFlag(mc.getLanguageManager().isCurrentLocaleUnicode() || mc.gameSettings.forceUnicodeFont);
+    }
+
     private static Map<String, String> langFile(String domain) throws Exception {
+        return langFile(domain, "en_us");
+    }
+
+    private static Map<String, String> langFile(String domain, String language) throws Exception {
         try (JarFile jf = new JarFile(modJar())) {
-            JarEntry entry = jf.getJarEntry("assets/" + domain + "/lang/en_us.lang");
-            if (entry == null) throw new AssertionError("the jar has no assets/" + domain + "/lang/en_us.lang");
+            JarEntry entry = jf.getJarEntry("assets/" + domain + "/lang/" + language + ".lang");
+            if (entry == null) throw new AssertionError("the jar has no assets/" + domain + "/lang/" + language + ".lang");
             Map<String, String> lang = new LinkedHashMap<>();
             for (String line : new String(readAll(jf.getInputStream(entry)), StandardCharsets.UTF_8).split("\n")) {
                 int eq = line.indexOf('=');

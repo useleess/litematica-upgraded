@@ -16,7 +16,9 @@ public final class StateMatch {
     private static final Set<String> RUNTIME = new HashSet<>(Arrays.asList(
         "powered", "power", "lit", "open", "delay", "mode", "triggered", "extended", "north", "south", "east", "west",
         "up", "down", "shape", "snowy", "hinge", "disarmed", "attached", "moisture", "age", "locked", "conditional",
-        "in_wall", "contents", "bites", "enabled", "decayable", "check_decay"));
+        "in_wall", "contents", "bites", "enabled", "decayable", "check_decay",
+        // a brewing stand shows the bottles it holds: they come from filling it, not from placing
+        "has_bottle_0", "has_bottle_1", "has_bottle_2"));
 
     private StateMatch() {}
 

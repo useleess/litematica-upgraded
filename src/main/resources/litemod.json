@@ -1,0 +1,9 @@
+{
+  "name": "litematica_upgraded",
+  "displayName": "Litematica Upgraded",
+  "mcversion": "1.12.2",
+  "version": "${version}",
+  "author": "Useleess",
+  "description": "Litematica and malilib for Forge 1.12.2 with a printer, server-side support and more.",
+  "mixinConfigs": ["mixins.litematica.json", "mixins.malilib.json", "mixins.litematica_upgraded.json"]
+}

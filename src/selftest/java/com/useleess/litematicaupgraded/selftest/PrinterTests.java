@@ -410,6 +410,34 @@ final class PrinterTests {
         f2.check = containerCheck(new BlockPos(0, 0, 0), new ItemStack(Blocks.STONE), new ItemStack(Blocks.SAND, 3), new ItemStack(Blocks.COBBLESTONE));
         register(r, f2);
 
+        // printer/fill/: chests (also a double trapped chest), furnace, brewing stand, shulker box
+        IBlockState chestNorth = Blocks.CHEST.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH);
+        fill(r, "chest-filled-into-the-right-slots", new BlockPos[] {new BlockPos(0, 0, 0)}, new IBlockState[] {chestNorth},
+            new NBTTagCompound[] {containerTile("minecraft:chest", item(0, "minecraft:dirt", 3), item(13, "minecraft:cobblestone", 2), item(26, "minecraft:stone", 1))},
+            slots(27, 0, new ItemStack(Blocks.DIRT, 3), 13, new ItemStack(Blocks.COBBLESTONE, 2), 26, new ItemStack(Blocks.STONE)),
+            "give @s minecraft:dirt 3", "give @s minecraft:cobblestone 2", "give @s minecraft:stone 1");
+        IBlockState trapped = Blocks.TRAPPED_CHEST.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH);
+        fill(r, "double-trapped-chest-both-halves-filled", new BlockPos[] {new BlockPos(0, 0, 0), new BlockPos(1, 0, 0)}, new IBlockState[] {trapped, trapped},
+            new NBTTagCompound[] {containerTile("minecraft:chest", item(0, "minecraft:dirt", 2), item(26, "minecraft:cobblestone", 1)),
+                containerTile("minecraft:chest", item(0, "minecraft:stone", 1), item(5, "minecraft:sand", 2))},
+            slots(54, 0, new ItemStack(Blocks.DIRT, 2), 26, new ItemStack(Blocks.COBBLESTONE), 27, new ItemStack(Blocks.STONE), 32, new ItemStack(Blocks.SAND, 2)),
+            "give @s minecraft:dirt 2", "give @s minecraft:cobblestone 1", "give @s minecraft:stone 1", "give @s minecraft:sand 2");
+        // dirt does not smelt, so the coal is not burnt; the output slot (an iron ingot in the schematic) stays empty
+        fill(r, "furnace-input-and-fuel-filled-output-left-empty", new BlockPos[] {new BlockPos(0, 0, 0)},
+            new IBlockState[] {Blocks.FURNACE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH)},
+            new NBTTagCompound[] {containerTile("minecraft:furnace", item(0, "minecraft:dirt", 3), item(1, "minecraft:coal", 2), item(2, "minecraft:iron_ingot", 1))},
+            slots(3, 0, new ItemStack(Blocks.DIRT, 3), 1, new ItemStack(Items.COAL, 2)),
+            "give @s minecraft:dirt 3", "give @s minecraft:coal 2");
+        // no blaze powder: the stand would burn it at once
+        fill(r, "brewing-stand-bottles-and-ingredient-filled", new BlockPos[] {new BlockPos(0, 0, 0)}, new IBlockState[] {Blocks.BREWING_STAND.getDefaultState()},
+            new NBTTagCompound[] {containerTile("minecraft:brewing_stand", item(0, "minecraft:glass_bottle", 1), item(2, "minecraft:glass_bottle", 1), item(3, "minecraft:nether_wart", 2))},
+            slots(5, 0, new ItemStack(Items.GLASS_BOTTLE), 2, new ItemStack(Items.GLASS_BOTTLE), 3, new ItemStack(Items.NETHER_WART, 2)),
+            "give @s minecraft:glass_bottle 2", "give @s minecraft:nether_wart 2");
+        fill(r, "shulker-box-placed-empty-then-filled", new BlockPos[] {new BlockPos(0, 0, 0)}, new IBlockState[] {Blocks.PURPLE_SHULKER_BOX.getDefaultState()},
+            new NBTTagCompound[] {containerTile("minecraft:shulker_box", item(0, "minecraft:dirt", 5), item(13, "minecraft:cobblestone", 2))},
+            slots(27, 0, new ItemStack(Blocks.DIRT, 5), 13, new ItemStack(Blocks.COBBLESTONE, 2)),
+            "give @s minecraft:dirt 5", "give @s minecraft:cobblestone 2");
+
         // printer/fluid/: sources from buckets, water from ice
         fluid(r, "water-source-placed-with-bucket", Blocks.WATER.getDefaultState(), "give @s minecraft:water_bucket 1");
         fluid(r, "lava-source-placed-with-bucket", Blocks.LAVA.getDefaultState(), "give @s minecraft:lava_bucket 1");
@@ -701,12 +729,34 @@ final class PrinterTests {
                     if (!same) wrong.add("slot " + index + " holds " + have + ", wanted " + want);
                 }
                 c.mc.player.closeScreen();
-                result[0] = wrong.isEmpty() ? null : String.join("; ", wrong);
+                result[0] = wrong.isEmpty() ? null : String.join("; ", wrong) + " (last fill: " + Printer.lastFillEnd() + ")";
                 phase[0] = 2;
                 return "read the container";
             }
             return result[0];
         };
+    }
+
+    /** A fill test: the containers at the positions, built and filled by the printer; the first one is opened and read. */
+    private static void fill(Runner.Registry r, String name, BlockPos[] at, IBlockState[] states, NBTTagCompound[] tiles, ItemStack[] expected, String... gives) {
+        Scenario s = new Scenario("printer/fill/" + name);
+        for (int i = 0; i < at.length; i++) {
+            s.put(at[i].getX(), at[i].getY(), at[i].getZ(), states[i]);
+            s.tiles.put(at[i], tiles[i]);
+        }
+        s.extraCommands.addAll(java.util.Arrays.asList(gives));
+        s.at.put(0, c -> PrinterConfigs.FILL_CONTAINERS.setBooleanValue(true));
+        s.stable = 3;
+        s.check = containerCheck(at[0], expected);
+        register(r, s);
+    }
+
+    /** Expected slots: the size, then slot index / stack pairs; the other slots empty. */
+    private static ItemStack[] slots(int size, Object... pairs) {
+        ItemStack[] slots = new ItemStack[size];
+        java.util.Arrays.fill(slots, ItemStack.EMPTY);
+        for (int i = 0; i < pairs.length; i += 2) slots[(Integer) pairs[i]] = (ItemStack) pairs[i + 1];
+        return slots;
     }
 
     /** A water or lava source in the schematic; the world must end up with a source of that fluid there. */

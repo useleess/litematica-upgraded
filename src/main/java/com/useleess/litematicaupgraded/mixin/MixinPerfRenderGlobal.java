@@ -481,7 +481,7 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
             return false;
         }
 
-        RenderChunk chunk = ((IMixinViewFrustum) this.viewFrustum).invokeGetRenderChunk(new net.minecraft.util.math.BlockPos(x, y, z));
+        RenderChunk chunk = com.useleess.litematicaupgraded.compat.InterfaceAccess.renderChunk(this.viewFrustum, new net.minecraft.util.math.BlockPos(x, y, z));
         return chunk instanceof RenderChunkSchematicVbo && ((RenderChunkSchematicVbo) chunk).getChunkRenderData().isEmpty() == false;
     }
 
@@ -493,7 +493,7 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
             return "no view frustum";
         }
 
-        RenderChunk chunk = ((IMixinViewFrustum) this.viewFrustum).invokeGetRenderChunk(new net.minecraft.util.math.BlockPos(x, y, z));
+        RenderChunk chunk = com.useleess.litematicaupgraded.compat.InterfaceAccess.renderChunk(this.viewFrustum, new net.minecraft.util.math.BlockPos(x, y, z));
 
         if (chunk instanceof RenderChunkSchematicVbo == false)
         {

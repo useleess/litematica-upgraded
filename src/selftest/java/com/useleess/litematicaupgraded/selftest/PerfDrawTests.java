@@ -12,6 +12,7 @@ import java.util.Map;
 
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.EnumDyeColor;
 import net.minecraft.block.BlockStainedGlass;
@@ -67,6 +68,7 @@ final class PerfDrawTests {
         registerBudget(r);
         registerVbo(r);
         registerOptifine(r);
+        registerLiteloader(r);
     }
 
     // ------------------------------------------------------------------------------------------------ small tools
@@ -701,29 +703,49 @@ final class PerfDrawTests {
             System.out.println("PERF optifine loaded=true");
         });
 
+        bigPlacementDrawsAndMoves(r, "perf/optifine/big-placement-draws-and-moves", "optifine", "OptiFine");
+    }
+
+    // ------------------------------------------------------------------------------------------------ LiteLoader (own phase)
+
+    private static void registerLiteloader(Runner.Registry r) {
+        r.add("compat/liteloader/game-starts-with-our-mixins-active", c -> {
+            c.check(Loader.isModLoaded("litematica_upgraded"), "the mod is not loaded");
+            c.check(Loader.isModLoaded("mixinbooter") == false, "MixinBooter is in this game (the phase must run without it)");
+            c.check(PerfDrawTests.class.getClassLoader().getResource("com/mumfrey/liteloader/launch/LiteLoaderTweaker.class") != null, "LiteLoader is not in this game");
+            c.check(c.mc.world != null && c.mc.player != null, "not in a world");
+            // perf$renderedWithData exists only because our mixin was applied to Litematica's renderer
+            c.check(renderer() != null && renderer().perf$renderedWithData() >= 0, "our mixin on the schematic renderer is not applied");
+            System.out.println("LITELOADER mixins active");
+        });
+        bigPlacementDrawsAndMoves(r, "compat/liteloader/placement-draws-and-moves", "liteloader", "LiteLoader");
+    }
+
+    /** A big placement is built, drawn and moved (ghost move); the same test for the OptiFine and LiteLoader phases. */
+    private static void bigPlacementDrawsAndMoves(Runner.Registry r, String id, String tag, String label) {
         PerfTests.Seq seq = new PerfTests.Seq();
         int[] t = {0};
         BlockPos[] from = new BlockPos[1];
         long[] m = new long[6];
-        r.waitFor("perf/optifine/big-placement-draws-and-moves", 9000, c -> {
-            bigSettled(c, seq, "selftest-perf-optifine");
+        r.waitFor(id, 9000, c -> {
+            bigSettled(c, seq, "selftest-perf-" + tag);
             measure(seq, 20, m);
             seq.once(x -> {
-                x.check(renderer().perf$renderedWithData() > 0, "no piece holds built data with OptiFine");
-                x.check(perFrame(m, 2) > 0, "nothing was drawn with OptiFine");
-                shot(x.mc, "perf-optifine-big-placement");
+                x.check(renderer().perf$renderedWithData() > 0, "no piece holds built data with " + label);
+                x.check(perFrame(m, 2) > 0, "nothing was drawn with " + label);
+                shot(x.mc, "perf-" + tag + "-big-placement");
                 SchematicPlacement p = manager().getAllSchematicPlacements().get(0);
                 manager().setSelectedSchematicPlacement(p);
                 from[0] = p.getPosition();
-            }).until("a move with OptiFine", 2000, 1, x -> {
+            }).until("a move with " + label, 2000, 1, x -> {
                 SchematicPlacement p = manager().getAllSchematicPlacements().get(0);
                 keepMoving(p, from[0], 3, 4, t).ready(x);
                 return t[0] > 40 && GhostMove.isActive() && CompleteCopy.isBuilding() == false;
             }).once(x -> {
-                x.check(renderer().perf$lastDrawList().size() > 0, "nothing is drawn while moving with OptiFine");
-                shot(x.mc, "perf-optifine-moving");
+                x.check(renderer().perf$lastDrawList().size() > 0, "nothing is drawn while moving with " + label);
+                shot(x.mc, "perf-" + tag + "-moving");
             }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).until("the rebuild after the move", 3000, 10, idle()).once(x -> {
-                x.check(renderer().perf$renderedWithData() > 0, "nothing is built after the move with OptiFine");
+                x.check(renderer().perf$renderedWithData() > 0, "nothing is built after the move with " + label);
                 for (PerfGuard.Feature f : PerfGuard.Feature.values()) x.check(PerfGuard.isOff(f) == false, f + " was switched off by the fail-safe");
                 removeAllPlacements();
             });

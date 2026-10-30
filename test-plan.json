@@ -38,8 +38,8 @@
   },
   {
    "prefix": "lang/",
-   "min": 3,
-   "what": "translations load in game: Litematica + malilib keys resolve (I18n), screen buttons show real text not keys, no key used in code is missing from en_us.lang"
+   "min": 6,
+   "what": "translations load in game: Litematica + malilib keys resolve (I18n), screen buttons show real text not keys, no key used in code is missing from en_us.lang; the game switched to German / Chinese shows the settings screen in that language (13 languages, LangKeysTest checks every line)"
   },
   {
    "prefix": "printer/place/",
@@ -98,8 +98,8 @@
   },
   {
    "prefix": "printer/fill/",
-   "min": 2,
-   "what": "hopper/dropper/dispenser filters filled with the schematic's items into the right slots; slots with other items left alone"
+   "min": 4,
+   "what": "the printer fills built containers with the schematic's items in the right slots: hopper, dropper, dispenser, chest, trapped chest (incl. double chests), furnace, brewing stand, shulker box; slots with other items are left alone"
   },
   {
    "prefix": "printer/fluid/",
@@ -320,6 +320,16 @@
    "prefix": "import/once/",
    "min": 1,
    "what": "the copy runs once: chat line shown once, flag set, a second start copies nothing; options the player changed are never overwritten"
+  },
+  {
+   "prefix": "material/replace/",
+   "min": 2,
+   "what": "material list Replace: swap one block for another in the whole placement (all its states, e.g. stairs keep facing); ghost blocks, verifier, printer and material counts follow; undo by replacing back; nothing outside the placement changes"
+  },
+  {
+   "prefix": "compat/liteloader/",
+   "min": 2,
+   "what": "Forge + LiteLoader, NO MixinBooter: the game starts, our mixins are applied (using LiteLoader's Mixin) and a schematic placement draws and moves; with MixinBooter and no LiteLoader everything works as before"
   }
  ]
 }

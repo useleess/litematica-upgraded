@@ -178,7 +178,7 @@ final class ConvertTests {
     }
 
     /** Presses the button of a screen with this label (a translation key's text), found by name. */
-    private static void press(Runner.Context c, Object screen, String key) throws Exception {
+    static void press(Runner.Context c, Object screen, String key) throws Exception {
         String label = StringUtils.translate(key);
         List<String> seen = new ArrayList<>();
         for (Class<?> k = screen.getClass(); k != null; k = k.getSuperclass()) {

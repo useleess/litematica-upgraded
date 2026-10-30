@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 
+import com.useleess.litematicaupgraded.compat.MixinCheck;
 import com.useleess.litematicaupgraded.proxy.CommonProxy;
 import com.useleess.litematicaupgraded.server.PrinterCommand;
 
@@ -16,7 +17,7 @@ import com.useleess.litematicaupgraded.server.PrinterCommand;
  * through the client proxy. A client without the mod can join a server that has it, and the other way round.
  */
 @Mod(modid = LitematicaUpgraded.MOD_ID, name = "Litematica Upgraded", useMetadata = true,
-        acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]", dependencies = "required-after:mixinbooter")
+        acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
 public class LitematicaUpgraded {
     public static final String MOD_ID = "litematica_upgraded";
 
@@ -25,6 +26,7 @@ public class LitematicaUpgraded {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        MixinCheck.require();
         proxy.preInit(event);
     }
 
