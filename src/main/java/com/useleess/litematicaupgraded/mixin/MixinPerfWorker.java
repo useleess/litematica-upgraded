@@ -39,7 +39,7 @@ public abstract class MixinPerfWorker
 
             if (((PerfChunk) renderer).perf$isComplete() == false)
             {
-                perf$recordSignature(renderer, task.getCompiledChunk(), onMainThread);
+                perf$recordIfCurrent(renderer, task, onMainThread);
             }
         }
         catch (RuntimeException e)
@@ -80,6 +80,29 @@ public abstract class MixinPerfWorker
         finally
         {
             lock.unlock();
+        }
+    }
+
+    /**
+     * A build that was cancelled while it ran (finish(): a newer build was asked for, or the renderer was replaced) still runs
+     * to its end, but its result is thrown away. It must not be recorded either: finishing after the newer build of the same
+     * place (a replaced renderer has its own lock), it would overwrite that build's signature with an outdated one. Checked
+     * under the task's lock, which finish() takes too.
+     */
+    private static void perf$recordIfCurrent(RenderChunkSchematicVbo renderer, ChunkCompileTaskGeneratorSchematic task, boolean onMainThread)
+    {
+        task.getLock().lock();
+
+        try
+        {
+            if (task.getStatus() == ChunkCompileTaskGeneratorSchematic.Status.COMPILING)
+            {
+                perf$recordSignature(renderer, task.getCompiledChunk(), onMainThread);
+            }
+        }
+        finally
+        {
+            task.getLock().unlock();
         }
     }
 

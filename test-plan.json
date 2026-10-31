@@ -18,8 +18,8 @@
   },
   {
    "prefix": "render/",
-   "min": 2,
-   "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks"
+   "min": 3,
+   "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks; drawing before the schematic world exists does not crash (Discord #1)"
   },
   {
    "prefix": "selection/",

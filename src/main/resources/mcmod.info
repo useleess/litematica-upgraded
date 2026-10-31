@@ -6,5 +6,5 @@
   "mcversion": "1.12.2",
   "url": "https://github.com/useleess/litematica-upgraded",
   "authorList": ["Useleess"],
-  "credits": "Litematica and malilib by masa (maruohon), LGPL-3.0"
+  "credits": "Litematica and malilib by masa (maruohon), LGPL-3.0. Printer and converter built on Schematica by Lunatrius and Schematica Plus by HackerRouter (MIT). Translations partly by the translators of masa's Litematica and malilib, the rest machine-translated."
 }]

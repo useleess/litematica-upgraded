@@ -191,6 +191,54 @@ final class PerfTests {
                 && PerfStats.builds() > buildsBefore[0];
     }
 
+    /**
+     * The recorded build results of the chunks listed for drawing now (built and not waiting for a rebuild). A chunk out of
+     * view (behind the frame or hidden behind built chunks) is not rebuilt when marked, so its last result can be outdated.
+     */
+    static Map<Long, int[]> currentSignatures(boolean mainThread) {
+        Map<Long, int[]> all = PerfStats.signatures(mainThread);
+        Map<Long, int[]> current = new LinkedHashMap<>();
+        for (com.useleess.litematicaupgraded.litematica.render.schematic.RenderChunkSchematicVbo p : renderer().perf$listedRenderers()) {
+            if (p.needsUpdate() || ((com.useleess.litematicaupgraded.perf.PerfChunk) p).perf$isBuilding()) continue;
+            long key = p.getPosition().toLong();
+            int[] sig = all.get(key);
+            if (sig != null) current.put(key, sig);
+        }
+        return current;
+    }
+
+    /** Fails when a chunk's quads differ between two sets of build results; returns how many chunks were in both. */
+    private static int compareSignatures(Runner.Context c, Map<Long, int[]> a, Map<Long, int[]> b, String nameA, String nameB) {
+        int compared = 0;
+        for (Map.Entry<Long, int[]> e : b.entrySet()) {
+            int[] first = a.get(e.getKey());
+            if (first == null) continue;
+            compared++;
+            c.check(java.util.Arrays.equals(first, e.getValue()), "chunk " + net.minecraft.util.math.BlockPos.fromLong(e.getKey()) + ": " + nameA + " "
+                    + java.util.Arrays.toString(first) + " " + nameB + " " + java.util.Arrays.toString(e.getValue()));
+        }
+        return compared;
+    }
+
+    /** Back to the automatic build threads (a failed threads test must not leave the single-thread mode on for the later tests). */
+    private static void autoThreads() {
+        PerfConfigs.BUILD_THREADS.setIntegerValue(0);
+        PerfLive.consumeReload();
+        renderer().perf$resetDispatcher();
+    }
+
+    /** Runs a test's steps; when one fails, the build threads are put back first. */
+    private static Runner.Poll restoringThreads(Seq seq) {
+        return c -> {
+            try {
+                return seq.run(c);
+            } catch (Throwable e) {
+                autoThreads();
+                throw e;
+            }
+        };
+    }
+
     /** A hash of every block of the schematic world inside the box. */
     private static long hashBox(IntBoundingBox box) {
         World world = SchematicWorldHandler.getSchematicWorld();
@@ -305,7 +353,7 @@ final class PerfTests {
             threads.until("the big placement to be copied and built", 3000, 20, settled(before)).once(x -> {
                 x.check(PerfStats.builds() - before[0] > 10, "only " + (PerfStats.builds() - before[0]) + " chunk builds happened");
                 x.check(PerfStats.mainBuilds() == before[1], (PerfStats.mainBuilds() - before[1]) + " builds ran on the render thread");
-                workerSignatures = new LinkedHashMap<>(PerfStats.signatures(false));
+                workerSignatures = currentSignatures(false);
                 int solid = 0;
                 for (int[] sig : workerSignatures.values()) if (sig[0] + sig[1] + sig[2] + sig[3] > 0) solid++;
                 x.check(solid >= 3, "only " + solid + " built chunks hold any model quads");
@@ -322,8 +370,12 @@ final class PerfTests {
                 if (k[0]++ % 4 == 0) world.markBlockRangeForRenderUpdate(box.getMinX(), box.getMinY(), box.getMinZ(), box.getMinX() + 40, box.getMaxY(), box.getMinZ() + 40);
                 return k[0] > 60;
             });
-            threads.until("the builds after the stress", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle());
-        }, c -> threads.run(c));
+            threads.until("the builds after the stress", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()).once(x -> {
+                // the chunks built again by the threads during the stress made the same quads as their first threaded build
+                int again = compareSignatures(x, workerSignatures, currentSignatures(false), "first threaded build", "threaded rebuild");
+                System.out.println("PERF threads rebuilt_same=" + again);
+            });
+        }, restoringThreads(threads));
 
         Seq same = new Seq();
         r.waitFor("perf/threads/same-result-as-single-thread-build", 6000, c -> {
@@ -333,26 +385,14 @@ final class PerfTests {
             PerfConfigs.BUILD_THREADS.setIntegerValue(1);
             PerfLive.consumeReload();
             renderer().perf$resetDispatcher();
-            c.check(renderer().perf$buildThreads() == 0, "the single-thread mode still has build threads");
-            same.until("the single-thread build", 3000, 30, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()
+            same.once(x -> x.check(renderer().perf$buildThreads() == 0, "the single-thread mode still has build threads")).until("the single-thread build", 3000, 30, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()
                     && PerfStats.mainBuilds() > mainBefore[0]).once(x -> {
-                Map<Long, int[]> single = PerfStats.signatures(true);
-                int compared = 0;
-                for (Map.Entry<Long, int[]> e : single.entrySet()) {
-                    int[] threaded = workerSignatures.get(e.getKey());
-                    if (threaded == null) continue;
-                    compared++;
-                    x.check(java.util.Arrays.equals(threaded, e.getValue()),
-                            "chunk " + net.minecraft.util.math.BlockPos.fromLong(e.getKey()) + ": threaded " + java.util.Arrays.toString(threaded)
-                                    + " single " + java.util.Arrays.toString(e.getValue()));
-                }
+                int compared = compareSignatures(x, workerSignatures, currentSignatures(true), "threaded", "single");
                 x.check(compared >= 5, "only " + compared + " chunks were built both ways");
                 System.out.println("PERF threads compared=" + compared + " chunks, same quads");
-                PerfConfigs.BUILD_THREADS.setIntegerValue(0);
-                PerfLive.consumeReload();
-                renderer().perf$resetDispatcher();
+                autoThreads();
             });
-        }, c -> same.run(c));
+        }, restoringThreads(same));
 
         Seq still = new Seq();
         long[] stillBefore = new long[3];

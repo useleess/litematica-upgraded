@@ -1,5 +1,10 @@
 # Litematica Upgraded changelog
 
+## 0.2.1 - 2026-10-31
+
+- Credits completed: the mod list and the Credits setting now also name Schematica / Schematica Plus (MIT) and the translators.
+- Fixed a crash about a second after joining a world (NullPointerException in RenderGlobalSchematic, #1).
+
 ## 0.2.0 - 2026-10-30
 
 - Works next to LiteLoader: don't install MixinBooter there (the mod uses LiteLoader's Mixin). Without LiteLoader, MixinBooter is still needed; with neither, the game now says so clearly instead of crashing.

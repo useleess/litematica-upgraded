@@ -1163,7 +1163,7 @@
   "litematica_upgraded.command.saving.status.on": "Server-side saving is allowed.",
   "litematica_upgraded.command.status": "Litematica Upgraded server part: printer %s, saving %s, edits %s (permission level %s, upload cap %s KiB), %s running.",
   "litematica_upgraded.command.usage": "/litematicaupgraded <printer|saving|edits> <on|off|status>, edits <level|limit|rate> <number>, status",
-  "litematica_upgraded.config.comment.credits": "The printer and Easy Place rotation come from Schematica Upgraded, built on Schematica by Lunatrius and Schematica Plus by HackerRouter (MIT licence). Litematica and malilib are by masa (LGPL-3.0).",
+  "litematica_upgraded.config.comment.credits": "The printer and Easy Place rotation come from Schematica Upgraded, built on Schematica by Lunatrius and Schematica Plus by HackerRouter (MIT licence). Litematica and malilib are by masa (LGPL-3.0). Translations partly by the translators of masa's Litematica and malilib, the rest machine-translated.",
   "litematica_upgraded.config.comment.destroyassist": "Holding the attack button on a block the placement wants gone mines all such blocks in reach, one after another. Other blocks are never touched.",
   "litematica_upgraded.config.comment.easyplacefakerotation": "Makes Litematica's Easy Place work on servers without a mod: the rotation and position a block needs are reported to the server for the click.",
   "litematica_upgraded.config.comment.perfautoworkers": "With Build Threads on 0 (automatic), uses your CPU cores minus one (at least one), so one core is always free for the game. Off: Litematica's own count.",

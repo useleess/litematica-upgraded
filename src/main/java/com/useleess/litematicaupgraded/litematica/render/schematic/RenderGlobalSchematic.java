@@ -285,6 +285,14 @@ public class RenderGlobalSchematic extends RenderGlobal
             this.loadRenderers();
         }
 
+        // no schematic world yet (just after joining, or after it was unloaded): nothing to set up this frame. Upstream
+        // went on with a null viewFrustum here and crashed players about a second after joining (Discord #1)
+        if (this.viewFrustum == null)
+        {
+            GameWrap.profilerPop();
+            return;
+        }
+
         GameWrap.profilerPush("camera");
 
         double entityX = EntityWrap.getX(viewEntity);

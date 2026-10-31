@@ -40,3 +40,4 @@ build-smoke/
 build-ingame/
 .base-plan.json
 _optifine/
+_out/

@@ -57,7 +57,7 @@ litematica_upgraded.title.screen.material.replace=Replace %s with
 litematica_upgraded.message.material.replaced=Replaced %s blocks of %s with %s
 litematica_upgraded.message.material.replace_none=Nothing to replace: no block of %s in the placement
 litematica_upgraded.config.name.credits=Credits
-litematica_upgraded.config.comment.credits=The printer and Easy Place rotation come from Schematica Upgraded, built on Schematica by Lunatrius and Schematica Plus by HackerRouter (MIT licence). Litematica and malilib are by masa (LGPL-3.0).
+litematica_upgraded.config.comment.credits=The printer and Easy Place rotation come from Schematica Upgraded, built on Schematica by Lunatrius and Schematica Plus by HackerRouter (MIT licence). Litematica and malilib are by masa (LGPL-3.0). Translations partly by the translators of masa's Litematica and malilib, the rest machine-translated.
 
 # server part
 litematica_upgraded.message.printer.disabled_by_server=The server does not allow the printer right now, so it is off.

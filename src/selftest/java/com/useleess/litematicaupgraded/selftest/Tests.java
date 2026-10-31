@@ -227,6 +227,16 @@ final class Tests {
         });
 
         // render/: placed schematics reach the schematic world and get their chunks built
+        // a schematic renderer asked to draw before its schematic world exists (Discord #1: crash ~1 s after joining)
+        r.add("render/no-schematic-world-yet-does-not-crash", c -> {
+            com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic early =
+                    new com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic(c.mc);
+            early.setWorldAndLoadRenderers(null);
+            net.minecraft.client.renderer.culling.Frustum camera = new net.minecraft.client.renderer.culling.Frustum();
+            camera.setPosition(c.mc.player.posX, c.mc.player.posY, c.mc.player.posZ);
+            early.setupTerrain(c.mc.player, 0.5, camera, 1, false);
+            early.setupTerrain(c.mc.player, 0.5, camera, 2, false);
+        });
         r.waitFor("render/schematic-world-has-blocks", 600, c -> {
             LoadedSchematic loaded = load(c.mc, "minewave_worldeater.litematic");
             // next to the player, so the chunks around it are loaded and the queue builds them
