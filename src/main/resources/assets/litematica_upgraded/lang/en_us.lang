@@ -137,6 +137,9 @@ litematica_upgraded.config.name.perffullcopybudgetmb=Complete Copy Memory (MB)
 litematica_upgraded.config.comment.perffullcopybudgetmb=How much graphics memory the complete copy may use. 0 is automatic: a quarter of the free graphics memory, or 128 MB when the card cannot tell. Turn off Complete Copy While Moving to use none.
 litematica_upgraded.config.name.displaylists=Display Lists (Use VBOs Off)
 litematica_upgraded.message.perf.feature_off=Litematica Upgraded: "%s" did not work here and is off until you restart the game.
+litematica_upgraded.toast.config_failed.title=Litematica Upgraded settings
+litematica_upgraded.toast.config_failed.text=Could not open: see the game log
+litematica_upgraded.message.masa_litematica_installed=Litematica Upgraded: masa's Litematica (LiteLoader) is also installed. Litematica Upgraded replaces it, and while both are installed some schematic features may not work. Remove the litematica-liteloader file from your mods folder (keep malilib, MiniHUD, Tweakeroo and Item Scroller).
 litematica_upgraded.message.perf.out_of_memory=This schematic does not fit in memory (Minecraft has %s MB). Give the game more RAM.
 
 litematica_upgraded.message.import.copied=Litematica Upgraded copied %s keybinds and %s settings from %s.
@@ -144,3 +147,7 @@ litematica_upgraded.message.import.source.litematica=Litematica
 litematica_upgraded.message.import.source.schematica_upgraded=Schematica Upgraded
 litematica_upgraded.message.import.source.schematica=Schematica
 litematica_upgraded.error.no_mixin=Litematica Upgraded needs MixinBooter (or LiteLoader). Install MixinBooter into the mods folder.
+litematica_upgraded.config.name.preview3d=3D Preview
+litematica_upgraded.config.comment.preview3d=Shows a small 3D view of the selected schematic that slowly turns around, in the lower part of the schematic browser's info panel. Big files are shown simplified. Off: no view is built or drawn.
+litematica_upgraded.preview.building=Building preview...
+litematica_upgraded.preview.none=No preview

@@ -17,7 +17,8 @@ import com.useleess.litematicaupgraded.server.PrinterCommand;
  * through the client proxy. A client without the mod can join a server that has it, and the other way round.
  */
 @Mod(modid = LitematicaUpgraded.MOD_ID, name = "Litematica Upgraded", useMetadata = true,
-        acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]")
+        acceptableRemoteVersions = "*", acceptedMinecraftVersions = "[1.12.2]",
+        guiFactory = "com.useleess.litematicaupgraded.gui.ModListConfigFactory")
 public class LitematicaUpgraded {
     public static final String MOD_ID = "litematica_upgraded";
 

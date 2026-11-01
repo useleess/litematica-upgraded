@@ -27,6 +27,7 @@ public class PrinterInit implements InitializationHandler {
         MinecraftForge.EVENT_BUS.register(SignTextPaste.INSTANCE);
         MinecraftForge.EVENT_BUS.register(DestroyAssist.INSTANCE);
         MinecraftForge.EVENT_BUS.register(com.useleess.litematicaupgraded.materials.MaterialReplace.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(com.useleess.litematicaupgraded.preview.PreviewView.INSTANCE);
         Registry.INITIALIZATION_DISPATCHER.registerInitializationHandler(new PrinterInit());
     }
 

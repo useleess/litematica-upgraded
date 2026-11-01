@@ -82,8 +82,13 @@ def main(ref):
             data = json.loads(cfg.read_text(encoding="utf-8"))
             data["package"] = f"{BASE_PKG}.{data['package']}"
             data.pop("refmap", None)
-            data["refmap"] = f"mixins.{lib}.refmap.json"
-            (res_root / cfg.name).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
+            # our own names: masa's LiteLoader Litematica in the same game has mixins.{lib}.json too, and the game only
+            # finds one file per name (Discord #2: ours never loaded next to his)
+            data["refmap"] = f"mixins.litematica_upgraded.{lib}.refmap.json"
+            # each config makes its own hooks optional when OptiFine / masa's Litematica take them (LiteLoader loads them in
+            # another order than MixinBooter, so one config cannot do it for the others)
+            data["plugin"] = "com.useleess.litematicaupgraded.compat.CompatMixinPlugin"
+            (res_root / f"mixins.litematica_upgraded.{lib}.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"copied {copied} files from {ref}")
 
 

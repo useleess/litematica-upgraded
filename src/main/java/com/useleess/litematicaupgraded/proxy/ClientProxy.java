@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
+import com.useleess.litematicaupgraded.compat.MasaLitematicaNotice;
 import com.useleess.litematicaupgraded.convert.MissingBlocks;
 import com.useleess.litematicaupgraded.importer.OldSettingsImport;
 import com.useleess.litematicaupgraded.litematica.Litematica;
@@ -33,6 +34,7 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(ServerFeaturesClient.INSTANCE);
         PrinterInit.init();
         MinecraftForge.EVENT_BUS.register(OldSettingsImport.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(MasaLitematicaNotice.INSTANCE);
         // the blocks the player picked for blocks of newer versions, for every file
         MissingBlocks.load(new File(Loader.instance().getConfigDir(), "litematica_upgraded_missing_blocks.json"));
     }

@@ -12,14 +12,19 @@
    "what": "Litematica + malilib screens open in a world (main menu, config, schematic browser, loaded schematics list), found by name"
   },
   {
+   "prefix": "config/forge-button/",
+   "min": 3,
+   "what": "Forge's Mods list: Litematica Upgraded's Config button is enabled, opens our settings screen, and closing it goes back to the list"
+  },
+  {
    "prefix": "schematic/",
    "min": 4,
    "what": "load .litematic files, create placements, block counts and positions match the file"
   },
   {
    "prefix": "render/",
-   "min": 3,
-   "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks; drawing before the schematic world exists does not crash (Discord #1)"
+   "min": 4,
+   "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks; drawing before the schematic world exists does not crash, nor does any later step of the frame (Discord #1, #2)"
   },
   {
    "prefix": "selection/",
@@ -327,9 +332,29 @@
    "what": "material list Replace: swap one block for another in the whole placement (all its states, e.g. stairs keep facing); ghost blocks, verifier, printer and material counts follow; undo by replacing back; nothing outside the placement changes"
   },
   {
+   "prefix": "compat/liteloader-alone/",
+   "min": 4,
+   "what": "Forge + LiteLoader with none of masa's mods (no OptiFine, no MixinBooter): the game starts with our mixins, our schematic world is made on joining, a schematic placement draws and moves, no other LiteLoader mod is there"
+  },
+  {
+   "prefix": "compat/liteloader-optifine/",
+   "min": 6,
+   "what": "a player's setup (Discord #4): Forge first, LiteLoader after it, OptiFine in mods/1.12.2, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller: the game starts with our mixins, masa's mods run, a placement draws and moves, and after joining the client keeps ticking and drawing frames for 10 s (no freeze)"
+  },
+  {
+   "prefix": "compat/liteloader-first/",
+   "min": 6,
+   "what": "a player's setup (Discord #2): Prism starts LiteLoader before Forge, OptiFine in mods/1.12.2, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller: the game starts with our mixins, our schematic world is made on joining, masa's mods run, a schematic placement draws and moves"
+  },
+  {
    "prefix": "compat/liteloader/",
-   "min": 2,
-   "what": "Forge + LiteLoader, NO MixinBooter: the game starts, our mixins are applied (using LiteLoader's Mixin) and a schematic placement draws and moves; with MixinBooter and no LiteLoader everything works as before"
+   "min": 5,
+   "what": "Forge + LiteLoader, NO MixinBooter: the game starts, our mixins are applied (using LiteLoader's Mixin) and a schematic placement draws and moves; our schematic world is made on joining, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller run next to ours, his Litematica installed too: no crash, the player is told to remove it (Discord #2); with MixinBooter and no LiteLoader everything works as before"
+  },
+  {
+   "prefix": "preview/",
+   "min": 19,
+   "what": "schematic browser: a shrunk wall keeps the glass of its windows (screenshot), the 3D view of the selected schematic is built off the render thread and drawn with textured blocks (angle changes between frames), dragging turns and tilts it and the wheel zooms, a huge or big file is shrunk to a smaller textured build (1:N) without long frames (screenshots of the big one), a shrunk file draws its full 1:1 model at every zoom once built (screenshots default and zoomed in), a file over the face cap never builds the full model, the view appears near instantly (small file first picture < 300 ms, a 120 x 38 x 120 build first picture < 500 ms and complete < 3 s, a rough copy first for a big build), going back to a file draws it in the first frame, choosing another file stops the old build, the setting off draws nothing, closing the screen frees the GL resources, an unreadable file and a failing draw switch the view off without a crash"
   }
  ]
 }

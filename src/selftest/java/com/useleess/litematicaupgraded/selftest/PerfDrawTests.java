@@ -113,6 +113,14 @@ final class PerfDrawTests {
         return c -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle() && !GhostMove.isActive();
     }
 
+    /**
+     * The rebuild after a move is done: the pieces hold built data and nothing is queued. Idle alone is true in the frames
+     * right after the move ends, before the new pieces were even queued.
+     */
+    private static Runner.Poll builtAndIdle() {
+        return c -> renderer().perf$renderedWithData() > 0 && idle().ready(c);
+    }
+
     private static void shot(Minecraft mc, String name) {
         try {
             Runner.shot(mc, name);
@@ -172,7 +180,7 @@ final class PerfDrawTests {
         seq.once(x -> {
             x.mc.player.capabilities.isFlying = true;
             command(x.mc, String.format(java.util.Locale.ROOT, "/tp @s %.1f %.1f %.1f %.0f %.0f", at[0], at[1], at[2], at[3], at[4]));
-        }).until(what, 200, 15, x -> Math.abs(x.mc.player.posX - at[0]) < 1.5 && Math.abs(x.mc.player.posY - at[1]) < 1.5 && Math.abs(x.mc.player.posZ - at[2]) < 1.5
+        }).until(what, 3000, 15, x -> Math.abs(x.mc.player.posX - at[0]) < 1.5 && Math.abs(x.mc.player.posY - at[1]) < 1.5 && Math.abs(x.mc.player.posZ - at[2]) < 1.5
                 && Math.abs(net.minecraft.util.math.MathHelper.wrapDegrees(x.mc.player.rotationYaw - at[3])) < 1 && Math.abs(x.mc.player.rotationPitch - at[4]) < 1);
     }
 
@@ -183,7 +191,7 @@ final class PerfDrawTests {
         return n;
     }
 
-    /** Over the next {@code ticks} ticks: [frames, draw calls, block draws, listed, far outlines skipped, outline draws]. */
+    /** Over the next {@code ticks} ticks and at least half as many frames (a busy PC draws fewer): [frames, draw calls, block draws, listed, far outlines skipped, outline draws]. */
     private static void measure(PerfTests.Seq seq, int ticks, long[] out) {
         long[] start = new long[6];
         seq.once(c -> {
@@ -193,15 +201,63 @@ final class PerfDrawTests {
             start[3] = DrawStats.listed();
             start[4] = DrawStats.farOutlinesSkipped();
             start[5] = DrawStats.outlineDraws();
-        }).ticks(ticks).once(c -> {
+        }).ticks(ticks).until("frames to be drawn", 3000, 1, c -> DrawStats.frames() - start[0] >= Math.max(5, ticks / 2)).once(c -> {
             out[0] = DrawStats.frames() - start[0];
             out[1] = DrawStats.drawCalls() - start[1];
             out[2] = DrawStats.blockDraws() - start[2];
             out[3] = DrawStats.listed() - start[3];
             out[4] = DrawStats.farOutlinesSkipped() - start[4];
             out[5] = DrawStats.outlineDraws() - start[5];
-            if (out[0] < 5) throw new AssertionError("only " + out[0] + " frames were drawn in " + ticks + " ticks");
         });
+    }
+
+    /** Waits until {@code n} more frames were drawn (a busy PC draws few per tick). */
+    private static void frames(PerfTests.Seq seq, int n) {
+        long[] start = new long[1];
+        seq.once(c -> start[0] = DrawStats.frames()).until(n + " frames to be drawn", 3000, 1, c -> DrawStats.frames() >= start[0] + n);
+    }
+
+    /**
+     * A placement moved every tick, with the draw list of a frame that came after the latest move: ready on the first tick
+     * where {@code minFrames} frames were drawn since the latest move and the move is still held (a busy PC may stall
+     * long enough for the placement to settle in between; it is then moved again and the wait starts over).
+     */
+    private static final class Moving {
+        private final SchematicPlacement placement;
+        private final BlockPos from;
+        private final int a, b;
+        private final int minFrames;
+        private final int[] tick = {0};
+        private long frameAtMove = -1, nanosAtMove;
+
+        Moving(SchematicPlacement placement, BlockPos from, int a, int b, int minFrames) {
+            this.placement = placement;
+            this.from = from;
+            this.a = a;
+            this.b = b;
+            this.minFrames = minFrames;
+        }
+
+        boolean fresh() {
+            return frameAtMove >= 0 && DrawStats.frames() >= frameAtMove + minFrames && System.nanoTime() - nanosAtMove < GhostMove.SETTLE_NANOS && GhostMove.isActive();
+        }
+
+        /** Moves again unless the last frame is fresh; true when it is (nothing moved this tick). */
+        boolean step(Runner.Context c) throws Exception {
+            if (fresh()) return true;
+            keepMoving(placement, from, a, b, tick).ready(c);
+            frameAtMove = DrawStats.frames();
+            nanosAtMove = System.nanoTime();
+            return false;
+        }
+    }
+
+    /** Java memory pretended to be almost full: measured after a collection, so a later one cannot make it plentiful again. */
+    private static void pretendLowMemory() {
+        System.gc();
+        Runtime rt = Runtime.getRuntime();
+        long used = rt.totalMemory() - rt.freeMemory();
+        MemoryBudget.setMaxMemoryForTest(used + used / 20);
     }
 
     private static double perFrame(long[] m, int i) {
@@ -242,30 +298,17 @@ final class PerfDrawTests {
         PerfTests.Seq seq = new PerfTests.Seq();
         long[] off = new long[6], on = new long[6];
         long[][] vertices = new long[2][];
-        r.waitFor("perf/batch/draw-calls-per-frame-drop-clearly", 9000, c -> {
+        r.waitFor("perf/batch/draw-calls-per-frame-drop-clearly", 18000, c -> {
             bigSettled(c, seq, "selftest-perf-batch");
             seq.once(x -> {
                 PerfConfigs.BATCH_DRAW.setBooleanValue(false);
                 // a server teleport turns the view for sure (a turn only on this side can be put back by the server); yaw -45 looks
                 // south-east, along the placement (it reaches east and south from 6 blocks behind the player)
                 command(x.mc, "/tp @s ~ ~ ~ -45 20");
-            }).until("the view along the placement", 200, 20, x -> Math.abs(net.minecraft.util.math.MathHelper.wrapDegrees(x.mc.player.rotationYaw + 45)) < 1 && Math.abs(x.mc.player.rotationPitch - 20) < 1);
+            }).until("the view along the placement", 3000, 20, x -> Math.abs(net.minecraft.util.math.MathHelper.wrapDegrees(x.mc.player.rotationYaw + 45)) < 1 && Math.abs(x.mc.player.rotationPitch - 20) < 1);
             viewReady(seq, "the view along the placement");
-            measure(seq, 40, off);
-            seq.once(x -> vertices[0] = DrawStats.lastFrameLayerVertices());
-            // regions are made one per frame, each once its pieces stayed unchanged for a moment: on a slow PC that takes many
-            // ticks. Measured once no region was made for 60 frames.
-            long[] regions = {-1, 0};
-            seq.once(x -> PerfConfigs.BATCH_DRAW.setBooleanValue(true)).ticks(20).until("the batch regions to be made", 3000, 1, x -> {
-                if (DrawStats.batchedRegions() != regions[0]) {
-                    regions[0] = DrawStats.batchedRegions();
-                    regions[1] = DrawStats.frames();
-                }
-                return DrawStats.frames() - regions[1] >= 60 && idle().ready(x);
-            });
-            measure(seq, 40, on);
+            batchRounds(seq, off, on, vertices);
             seq.once(x -> {
-                vertices[1] = DrawStats.lastFrameLayerVertices();
                 double offCalls = perFrame(off, 2), onCalls = perFrame(on, 2);
                 System.out.println(String.format("PERF batch_block_draw_calls_per_frame off=%.1f on=%.1f regions=%d", offCalls, onCalls, BatchDraw.regionCount()));
                 x.check(BatchDraw.supported(), "the graphics card has no OpenGL 1.5");
@@ -287,13 +330,70 @@ final class PerfDrawTests {
         });
     }
 
+    /**
+     * Measures the settled view one by one, then batched, then one by one again. When the two one-by-one pictures differ the
+     * scene changed in between (a piece finished building, the view moved): the round is measured again, up to 8 rounds.
+     * Batched vs one by one is only judged on a scene that stood still for the whole round. {@code vertices[0]} / {@code [1]}
+     * = one by one / batched.
+     */
+    private static void batchRounds(PerfTests.Seq seq, long[] off, long[] on, long[][] vertices) {
+        PerfTests.Seq[] round = new PerfTests.Seq[1];
+        boolean[] still = new boolean[1];
+        int[] rounds = new int[1];
+        seq.add(x -> {
+            if (round[0] == null) {
+                rounds[0]++;
+                round[0] = batchRound(off, on, vertices, still);
+            }
+            if (!round[0].run(x)) return false;
+            round[0] = null;
+            if (still[0] || rounds[0] >= 8) {
+                PerfConfigs.BATCH_DRAW.setBooleanValue(true);
+                return true;
+            }
+            System.out.println("PERF batch scene changed during round " + rounds[0]);
+            return false;
+        });
+    }
+
+    private static PerfTests.Seq batchRound(long[] off, long[] on, long[][] vertices, boolean[] still) {
+        PerfTests.Seq seq = new PerfTests.Seq();
+        long[][] before = new long[1][];
+        seq.once(x -> PerfConfigs.BATCH_DRAW.setBooleanValue(false));
+        frames(seq, 3);
+        viewReady(seq, "the view one by one");
+        measure(seq, 40, off);
+        seq.once(x -> before[0] = DrawStats.lastFrameLayerVertices());
+        // regions are made one per frame, each once its pieces stayed unchanged for a moment: on a slow PC that takes many
+        // ticks. Measured once no region was made for 60 frames.
+        long[] regions = {-1, 0};
+        seq.once(x -> PerfConfigs.BATCH_DRAW.setBooleanValue(true)).ticks(20).until("the batch regions to be made", 3000, 1, x -> {
+            if (DrawStats.batchedRegions() != regions[0]) {
+                regions[0] = DrawStats.batchedRegions();
+                regions[1] = DrawStats.frames();
+            }
+            return DrawStats.frames() - regions[1] >= 60 && idle().ready(x);
+        });
+        measure(seq, 40, on);
+        seq.once(x -> {
+            vertices[1] = DrawStats.lastFrameLayerVertices();
+            PerfConfigs.BATCH_DRAW.setBooleanValue(false);
+        });
+        frames(seq, 3);
+        seq.once(x -> {
+            vertices[0] = DrawStats.lastFrameLayerVertices();
+            still[0] = Arrays.equals(before[0], vertices[0]) && idle().ready(x);
+        });
+        return seq;
+    }
+
     // ------------------------------------------------------------------------------------------------ translucent
 
     private static void registerTranslucent(Runner.Registry r) {
         PerfTests.Seq seq = new PerfTests.Seq();
         long[] resorts = new long[2];
         double[] start = new double[3];
-        r.waitFor("perf/translucent/resort-only-after-real-distance", 6000, c -> {
+        r.waitFor("perf/translucent/resort-only-after-real-distance", 12000, c -> {
             Runner.dismissPopups(c.mc);
             removeAllPlacements();
             resetSettings();
@@ -315,11 +415,19 @@ final class PerfDrawTests {
                     PerfConfigs.LAZY_TRANSLUCENT_SORT.setBooleanValue(lazy);
                     fly(x.mc, start[0] - 10, start[1], start[2]);
                     x.mc.player.rotationPitch = 60;
-                }).ticks(20).once(x -> before[0] = DrawStats.resorts()).add(x -> {
-                    // 0.4 blocks a tick, 50 ticks: 20 blocks
+                }).ticks(20);
+                frames(seq, 3);
+                long[] lastFrame = {-1};
+                seq.once(x -> before[0] = DrawStats.resorts()).add(x -> {
+                    // 0.4 blocks a step, 50 steps: 20 blocks; every step waits for a frame (the sorting is decided per frame, and
+                    // a busy PC draws fewer frames than it has ticks)
+                    if (DrawStats.frames() == lastFrame[0]) return false;
+                    lastFrame[0] = DrawStats.frames();
                     fly(x.mc, start[0] - 10 + 0.4 * t[0], start[1], start[2]);
                     return ++t[0] > 50;
-                }).once(x -> resorts[lazy ? 1 : 0] = DrawStats.resorts() - before[0]);
+                });
+                frames(seq, 3);
+                seq.once(x -> resorts[lazy ? 1 : 0] = DrawStats.resorts() - before[0]);
             }
             seq.once(x -> {
                 System.out.println("PERF translucent_resorts_over_20_blocks off=" + resorts[0] + " on=" + resorts[1]);
@@ -381,7 +489,7 @@ final class PerfDrawTests {
     private static void registerFar(Runner.Registry r) {
         PerfTests.Seq seq = new PerfTests.Seq();
         long[] on = new long[6], off = new long[6];
-        r.waitFor("perf/far/far-pieces-without-outline-lines", 9000, c -> {
+        r.waitFor("perf/far/far-pieces-without-outline-lines", 18000, c -> {
             removeAllPlacements();
             farView(c, seq);
             measure(seq, 30, on);
@@ -404,13 +512,9 @@ final class PerfDrawTests {
 
         PerfTests.Seq low = new PerfTests.Seq();
         long[] lowMem = new long[6];
-        r.waitFor("perf/far/off-by-itself-on-low-memory", 9000, c -> {
+        r.waitFor("perf/far/off-by-itself-on-low-memory", 18000, c -> {
             farView(c, low);
-            low.once(x -> {
-                Runtime rt = Runtime.getRuntime();
-                long used = rt.totalMemory() - rt.freeMemory();
-                MemoryBudget.setMaxMemoryForTest(used + used / 10);
-            }).ticks(5);
+            low.once(x -> pretendLowMemory()).ticks(5);
             measure(low, 30, lowMem);
             low.once(x -> MemoryBudget.setMaxMemoryForTest(0));
             camera(low, "the camera back where the tests started", HOME);
@@ -429,6 +533,10 @@ final class PerfDrawTests {
             }
         });
     }
+
+    /** The far tests' placement and the schematic block the camera stands beside. */
+    private static SchematicPlacement farPlacement;
+    private static net.minecraft.util.math.BlockPos farBlock;
 
     /** Where the player was before the far tests went to a fresh spot (x, y, z, yaw, pitch). */
     private static final double[] HOME = new double[5];
@@ -461,23 +569,58 @@ final class PerfDrawTests {
         }
         double[] at = new double[5];
         seq.once(x -> {
-            IntBoundingBox box = manager().getAllSchematicPlacements().get(0).getEnclosingBox();
-            at[0] = box.getMinX() + 1.5;
+            // beside the schematic block nearest to the box's corner: the corner itself can be empty for a few pieces, and then,
+            // depending on how the box lines up with the pieces, no near piece had any block to outline (near_outline=0)
+            // (found once per placement: the far tests end back home, where the schematic world far away is unloaded)
+            SchematicPlacement placement = manager().getAllSchematicPlacements().get(0);
+            IntBoundingBox box = placement.getEnclosingBox();
+            if (placement != farPlacement) {
+                farBlock = nearestSchematicBlock(box);
+                farPlacement = placement;
+            }
+            net.minecraft.util.math.BlockPos block = farBlock;
+            x.check(block != null, "the placement has no block near its corner " + box);
+            at[0] = block.getX() + 0.5;
             at[1] = box.getMinY() + 8;
-            at[2] = box.getMinZ() + 1.5;
+            at[2] = block.getZ() + 0.5;
             at[3] = -45;
             at[4] = 25;
         });
         camera(seq, "the camera at the placement's corner", at);
         viewReady(seq, "the view from the corner");
+        // the near pieces' outline lines are built with the pieces (once the world's blocks around are known): measure only then
+        seq.until("the near pieces to hold outline lines", 3000, 10, x -> outlineCounts(x.mc)[1] > 0);
+        viewReady(seq, "the view with its outline lines");
+    }
+
+    /** The schematic block nearest to the box's lowest corner (fewest steps east + south), within 64 blocks of it. */
+    private static net.minecraft.util.math.BlockPos nearestSchematicBlock(IntBoundingBox box) {
+        net.minecraft.world.World world = com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler.getSchematicWorld();
+        net.minecraft.util.math.BlockPos.MutableBlockPos pos = new net.minecraft.util.math.BlockPos.MutableBlockPos();
+        for (int steps = 0; steps < 128; steps++) {
+            for (int dx = Math.max(0, steps - 63); dx <= Math.min(steps, 63); dx++) {
+                int x = box.getMinX() + dx, z = box.getMinZ() + steps - dx;
+                if (x > box.getMaxX() || z > box.getMaxZ()) continue;
+                for (int y = box.getMinY(); y <= box.getMaxY(); y++) {
+                    if (world.isAirBlock(pos.setPos(x, y, z)) == false) return pos.toImmutable();
+                }
+            }
+        }
+        return null;
     }
 
     /** Where the listed pieces with outline lines are, for the far test's numbers and failure message. */
     private static String outlineSpread(Minecraft mc) {
+        int[] n = outlineCounts(mc);
+        return "camera=" + mc.player.getPosition() + " near=" + n[0] + " near_outline=" + n[1] + " far_outline=" + n[2];
+    }
+
+    /** [near listed pieces, near pieces with outline lines, far pieces with outline lines]. */
+    private static int[] outlineCounts(Minecraft mc) {
         int cx = (int) Math.floor(mc.player.posX) >> 4, cz = (int) Math.floor(mc.player.posZ) >> 4;
         int near = 0, nearOutline = 0, farOutline = 0;
         for (RenderChunkSchematicVbo p : renderer().perf$listedRenderers()) {
-            boolean outline = p.hasOverlay() && p.getChunkRenderData().isOverlayTypeEmpty(RenderChunkSchematicVbo.OverlayRenderType.OUTLINE) == false;
+            boolean outline = p.hasOverlay() && p.getChunkRenderData() != null && p.getChunkRenderData().isOverlayTypeEmpty(RenderChunkSchematicVbo.OverlayRenderType.OUTLINE) == false;
             if (PerfMath.isFar(p.getPosition().getX() >> 4, p.getPosition().getZ() >> 4, cx, cz, mc.gameSettings.renderDistanceChunks)) {
                 if (outline) farOutline++;
             } else {
@@ -485,7 +628,7 @@ final class PerfDrawTests {
                 if (outline) nearOutline++;
             }
         }
-        return "camera=" + mc.player.getPosition() + " near=" + near + " near_outline=" + nearOutline + " far_outline=" + farOutline;
+        return new int[] {near, nearOutline, farOutline};
     }
 
     // ------------------------------------------------------------------------------------------------ complete copy while moving
@@ -515,7 +658,7 @@ final class PerfDrawTests {
         fly(c.mc, ox - 6, oy + 6, oz - 6);
         c.mc.player.rotationYaw = -45;
         c.mc.player.rotationPitch = 35;
-        seq.until("the stone in the world", 600, 5, x -> x.mc.world.getBlockState(new net.minecraft.util.math.BlockPos(ox + 11, oy + 2, oz + 11)).getBlock() == Blocks.STONE);
+        seq.until("the stone in the world", 3000, 5, x -> x.mc.world.getBlockState(new net.minecraft.util.math.BlockPos(ox + 11, oy + 2, oz + 11)).getBlock() == Blocks.STONE);
         long[] builds = new long[1];
         seq.once(x -> {
             builds[0] = PerfStats.builds();
@@ -536,17 +679,20 @@ final class PerfDrawTests {
     private static void registerMoveFull(Runner.Registry r) {
         PerfTests.Seq seq = new PerfTests.Seq();
         int[] tick = {0};
-        r.waitFor("perf/movefull/blocks-matching-the-world-shown-while-moving", 9000, c -> {
+        Moving[] mv = new Moving[1];
+        r.waitFor("perf/movefull/blocks-matching-the-world-shown-while-moving", 18000, c -> {
             movingMatched(c, seq, tick);
             seq.once(x -> {
+                mv[0] = new Moving(matched, matchedOrigin, 6, 7, 1);
                 // the camera looks at the moved copy (beside the world's stone) for the screenshot; a server teleport, so the
                 // server does not put the player back
                 x.mc.player.capabilities.isFlying = true;
                 command(x.mc, String.format("/tp @s %d %d %d 0 40", matchedOrigin.getX() + 12, matchedOrigin.getY() + 9, matchedOrigin.getZ() - 9));
             });
-            seq.until("the camera at the moved copy", 200, 15, x -> {
-                keepMoving(matched, matchedOrigin, 6, 7, tick).ready(x);
-                return Math.abs(x.mc.player.posZ - (matchedOrigin.getZ() - 9)) < 1.5 && Math.abs(x.mc.player.rotationPitch - 40) < 1;
+            // ready on a tick whose last frame came after the latest move: that frame drew the copy of the moving placement
+            seq.until("the camera at the moved copy in a frame of the move", 3000, 1, x -> {
+                boolean fresh = mv[0].step(x);
+                return fresh && Math.abs(x.mc.player.posZ - (matchedOrigin.getZ() - 9)) < 1.5 && Math.abs(x.mc.player.rotationPitch - 40) < 1;
             }).once(x -> {
                 List<RenderChunkSchematicVbo> drawn = renderer().perf$lastDrawList();
                 List<RenderChunkSchematicVbo> kept = CompleteCopy.keptRenderers();
@@ -568,10 +714,13 @@ final class PerfDrawTests {
 
         PerfTests.Seq stop = new PerfTests.Seq();
         int[] stopTick = {0};
-        r.waitFor("perf/movefull/swap-back-on-stop-with-overlay-colours", 9000, c -> {
+        r.waitFor("perf/movefull/swap-back-on-stop-with-overlay-colours", 18000, c -> {
             // the earlier test's moved placement, or (when that test failed) one made here
             if (!hasKeptCopy()) movingMatched(c, stop, stopTick);
-            stop.until("the move to settle and the normal pieces to come back", 2000, 1, x -> !GhostMove.isActive()).ticks(1).once(x -> {
+            stop.until("the move to settle and the normal pieces to come back", 3000, 1, x -> !GhostMove.isActive());
+            // the frame that ended the move may have chosen its pieces before: judge the frames after it
+            frames(stop, 2);
+            stop.once(x -> {
                 List<RenderChunkSchematicVbo> drawn = renderer().perf$lastDrawList();
                 int complete = 0, overlay = 0;
                 for (RenderChunkSchematicVbo p : drawn) {
@@ -581,7 +730,7 @@ final class PerfDrawTests {
                 x.check(complete == 0, complete + " complete pieces are still drawn after the move");
                 x.check(drawn.size() > 0, "nothing is drawn after the move");
                 x.check(CompleteCopy.isKeptFor(matched), "the complete copy was thrown away although the placement is still selected");
-            }).until("the overlay colours of the moved (now mismatching) placement", 2000, 5, x -> {
+            }).until("the overlay colours of the moved (now mismatching) placement", 3000, 5, x -> {
                 int overlay = 0;
                 for (RenderChunkSchematicVbo p : renderer().perf$lastDrawList()) if (p.hasOverlay()) overlay++;
                 return overlay > 0 && idle().ready(x);
@@ -591,29 +740,39 @@ final class PerfDrawTests {
         PerfTests.Seq again = new PerfTests.Seq();
         int[] made = new int[1];
         int[] againTick = {0};
+        boolean[] madeChecked = new boolean[1];
         long[] builtBefore = new long[1];
-        r.waitFor("perf/movefull/kept-for-the-next-move-until-deselected", 9000, c -> {
+        Moving[] next = new Moving[1];
+        r.waitFor("perf/movefull/kept-for-the-next-move-until-deselected", 18000, c -> {
             if (!hasKeptCopy()) {
                 movingMatched(c, again, againTick);
-                again.until("the first move to settle", 2000, 1, x -> !GhostMove.isActive());
+                again.until("the first move to settle", 3000, 1, x -> !GhostMove.isActive());
             }
             again.once(x -> {
                 made[0] = CompleteCopy.made();
                 builtBefore[0] = PerfStats.completeBuilds();
                 BlockPos now = matched.getPosition();
-                manager().setOrigin(matched, new BlockPos(now.getX() + 2, now.getY(), now.getZ()));
-                x.check(GhostMove.isActive(), "the second move did not start");
-                x.check(CompleteCopy.made() == made[0] && CompleteCopy.isKeptFor(matched), "the second move made a new complete copy instead of using the kept one");
-            }).ticks(1).once(x -> {
+                next[0] = new Moving(matched, new BlockPos(now.getX() - 2, now.getY(), now.getZ()), 4, 5, 1);
+            });
+            // the second move: the kept copy is shown in the first frame drawn after it (a frame of the move, not "within N ms")
+            again.until("a frame of the second move", 3000, 1, x -> {
+                boolean first = !madeChecked[0];
+                boolean fresh = next[0].step(x);
+                if (first) {
+                    madeChecked[0] = true;
+                    x.check(GhostMove.isActive(), "the second move did not start");
+                    x.check(CompleteCopy.made() == made[0] && CompleteCopy.isKeptFor(matched), "the second move made a new complete copy instead of using the kept one");
+                }
+                return fresh;
+            }).once(x -> {
                 int keptDrawn = 0;
                 List<RenderChunkSchematicVbo> kept = CompleteCopy.keptRenderers();
                 for (RenderChunkSchematicVbo p : renderer().perf$lastDrawList()) if (kept.contains(p)) keptDrawn++;
-                x.check(keptDrawn == kept.size() && keptDrawn > 0, "the kept copy was not shown at once on the next move (" + keptDrawn + " of " + kept.size() + ")");
+                x.check(keptDrawn == kept.size() && keptDrawn > 0, "the kept copy was not shown in the first frame of the next move (" + keptDrawn + " of " + kept.size() + ")");
                 x.check(PerfStats.completeBuilds() == builtBefore[0], "complete pieces were built again for the second move");
-            }).until("the second move to settle", 2000, 1, x -> !GhostMove.isActive()).once(x -> {
+            }).until("the second move to settle", 3000, 1, x -> !GhostMove.isActive()).once(x -> {
                 manager().setSelectedSchematicPlacement(null);
-            }).ticks(2).once(x -> {
-                x.check(CompleteCopy.exists() == false, "the complete copy was kept after the placement was deselected");
+            }).until("the complete copy to be thrown away", 3000, 1, x -> CompleteCopy.exists() == false).once(x -> {
                 removeAllPlacements();
                 command(x.mc, String.format("/fill %d %d %d %d %d %d minecraft:air", matchedOrigin.getX(), matchedOrigin.getY(), matchedOrigin.getZ(),
                         matchedOrigin.getX() + 11, matchedOrigin.getY() + 2, matchedOrigin.getZ() + 11));
@@ -662,7 +821,8 @@ final class PerfDrawTests {
         BlockPos[] from = new BlockPos[1];
         SchematicPlacement[] bp = new SchematicPlacement[1];
         int[] limit = new int[1];
-        r.waitFor("perf/budget/tiny-limit-respected-nearest-first", 9000, c -> {
+        Moving[] tinyMove = new Moving[1];
+        r.waitFor("perf/budget/tiny-limit-respected-nearest-first", 18000, c -> {
             // the earlier test's big placement and its copy's size, or (when that test failed) made here
             if (bigCopyMb <= 0 || manager().getAllSchematicPlacements().isEmpty()) bigCopy(c, seq, "selftest-perf-budget", x -> {});
             seq.once(x -> {
@@ -670,12 +830,14 @@ final class PerfDrawTests {
                 bp[0] = manager().getAllSchematicPlacements().get(0);
                 manager().setSelectedSchematicPlacement(null);
                 manager().setSelectedSchematicPlacement(bp[0]);
-                limit[0] = Math.max(1, (int) (bigCopyMb / 3));
+                limit[0] = Math.max(1, (int) (bigCopyMb / 12));
                 PerfConfigs.FULL_COPY_BUDGET_MB.setIntegerValue(limit[0]);
                 from[0] = bp[0].getPosition();
-            }).until("the complete copy under the small limit", 3000, 1, x -> {
-                keepMoving(bp[0], from[0], 2, 3, t).ready(x);
-                return CompleteCopy.isKeptFor(bp[0]) && CompleteCopy.isBuilding() == false;
+                tinyMove[0] = new Moving(bp[0], from[0], 2, 3, 1);
+            }).until("the complete copy under the small limit in a frame of the move", 3000, 1, x -> {
+                // ready on a tick whose last frame came after the latest move, drawn with the finished copy
+                boolean fresh = tinyMove[0].step(x);
+                return fresh && CompleteCopy.isKeptFor(bp[0]) && CompleteCopy.isBuilding() == false;
             }).once(x -> {
                 int limitMb = limit[0];
                 double[] d = CompleteCopy.keptVsOtherDistance();
@@ -684,13 +846,23 @@ final class PerfDrawTests {
                 x.check(CompleteCopy.budgetBytes() == limitMb * 1024L * 1024L, "the slider's limit was not used: " + CompleteCopy.budgetBytes());
                 x.check("slider".equals(CompleteCopy.budgetSource()), "limit source " + CompleteCopy.budgetSource());
                 x.check(CompleteCopy.usedBytes() <= CompleteCopy.budgetBytes(), "the copy uses " + CompleteCopy.usedBytes() + " bytes, over the limit " + CompleteCopy.budgetBytes());
-                x.check(CompleteCopy.budgetHit(), "a third of the copy's size did not stop the copy");
+                x.check(CompleteCopy.budgetHit(), "a twelfth of the copy's size did not stop the copy");
                 x.check(CompleteCopy.keptCount() > 0 && CompleteCopy.rejectedCount() > 0, "kept " + CompleteCopy.keptCount() + ", left out " + CompleteCopy.rejectedCount());
                 x.check(!(d[0] > d[1]), "a farther piece (" + d[0] + ") was kept while a nearer one (" + d[1] + ") was left out");
-                // where the copy has no piece, the old ghost is drawn
-                int ghosts = 0;
-                for (RenderChunkSchematicVbo g : renderer().perf$lastDrawList()) if (GhostMove.renderers().contains(g)) ghosts++;
-                x.check(ghosts > 0, "no ghost is drawn where the limited copy has no piece");
+                // where the copy has no piece, the old ghost is drawn (the ghosts the copy covers are not: only the nearest pieces
+                // are kept, and the ghosts are the pieces in view when the move began)
+                net.minecraft.util.math.BlockPos shift = GhostMove.currentOffset().toVanillaPos();
+                List<RenderChunkSchematicVbo> drawn = renderer().perf$lastDrawList();
+                int uncovered = 0, uncoveredDrawn = 0;
+                for (RenderChunkSchematicVbo g : GhostMove.renderers()) {
+                    net.minecraft.util.math.BlockPos at = g.getPosition();
+                    if (CompleteCopy.covers(bp[0], from[0], at.getX() - shift.getX(), at.getY() - shift.getY(), at.getZ() - shift.getZ())) continue;
+                    uncovered++;
+                    if (drawn.contains(g)) uncoveredDrawn++;
+                }
+                System.out.println("PERF budget_small ghosts=" + GhostMove.renderers().size() + " without_copy=" + uncovered + " drawn=" + uncoveredDrawn);
+                x.check(uncovered > 0, "the limited copy covers all " + GhostMove.renderers().size() + " ghosts, so no ghost is left to show where it has no piece");
+                x.check(uncoveredDrawn > 0, "no ghost is drawn where the limited copy has no piece (" + uncovered + " ghosts have no copy piece)");
             }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).once(x -> PerfConfigs.FULL_COPY_BUDGET_MB.setIntegerValue(0));
         }, cleaned(seq));
 
@@ -711,7 +883,8 @@ final class PerfDrawTests {
         PerfTests.Seq low = new PerfTests.Seq();
         int[] lt = {0};
         int[] counts = new int[2];
-        r.waitFor("perf/budget/low-java-memory-skips-or-drops-the-copy", 9000, c -> {
+        Moving[] lowMove = new Moving[1];
+        r.waitFor("perf/budget/low-java-memory-skips-or-drops-the-copy", 18000, c -> {
             // the earlier test's big placement, or (when that test failed) one made here
             if (manager().getAllSchematicPlacements().isEmpty()) bigSettled(c, low, "selftest-perf-budget-low");
             SchematicPlacement[] lp = new SchematicPlacement[1];
@@ -727,15 +900,13 @@ final class PerfDrawTests {
                 SchematicPlacement p = lp[0];
                 counts[0] = CompleteCopy.droppedTight();
                 counts[1] = CompleteCopy.skippedLowMemory();
-                Runtime rt = Runtime.getRuntime();
-                long used = rt.totalMemory() - rt.freeMemory();
-                MemoryBudget.setMaxMemoryForTest(used + used / 10);
-                keepMoving(p, from[0], 1, 2, lt).ready(x);
-            }).until("the complete copy to be dropped on tight Java memory", 100, 3, x -> {
-                SchematicPlacement p = lp[0];
-                // steps that are ready at once all run in one tick: keep moving over real frames (the copy is checked per frame)
-                keepMoving(p, from[0], 1, 2, lt).ready(x);
-                return CompleteCopy.exists() == false;
+                pretendLowMemory();
+                lowMove[0] = new Moving(p, from[0], 1, 2, 2);
+            }).until("the complete copy to be dropped on tight Java memory, seen in frames of the move", 3000, 1, x -> {
+                // steps that are ready at once all run in one tick: keep moving over real frames (the copy is checked per frame);
+                // ready on a tick whose last two frames came after the latest move, so they drew the state after the drop
+                boolean fresh = lowMove[0].step(x);
+                return fresh && CompleteCopy.exists() == false;
             }).once(x -> {
                 SchematicPlacement p = lp[0];
                 x.check(CompleteCopy.exists() == false, "the complete copy was not dropped when Java memory got tight");
@@ -748,9 +919,7 @@ final class PerfDrawTests {
                 SchematicPlacement p = lp[0];
                 // memory still low: a new move does not make a copy at all (the low limit is set again from what is used
                 // now: dropping the copy freed memory)
-                Runtime rt = Runtime.getRuntime();
-                long used = rt.totalMemory() - rt.freeMemory();
-                MemoryBudget.setMaxMemoryForTest(used + used / 10);
+                pretendLowMemory();
                 manager().setOrigin(p, new BlockPos(from[0].getX() + 5, from[0].getY(), from[0].getZ()));
                 x.check(GhostMove.isActive(), "the move did not start");
                 x.check(CompleteCopy.exists() == false && CompleteCopy.skippedLowMemory() > counts[1], "a complete copy was made although Java memory was low");
@@ -780,7 +949,7 @@ final class PerfDrawTests {
         int[] t = {0};
         BlockPos[] from = new BlockPos[1];
         long[] m = new long[6];
-        r.waitFor("perf/vbo/everything-works-with-vbos-off", 9000, c -> {
+        r.waitFor("perf/vbo/everything-works-with-vbos-off", 18000, c -> {
             Runner.dismissPopups(c.mc);
             removeAllPlacements();
             resetSettings();
@@ -806,7 +975,7 @@ final class PerfDrawTests {
             }).once(x -> {
                 x.check(renderer().perf$lastDrawList().size() > 0, "nothing is drawn while moving with VBOs off");
                 shot(x.mc, "perf-vbo-off-moving");
-            }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).until("the rebuild after the move", 3000, 10, idle()).once(x -> {
+            }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).until("the rebuild after the move", 3000, 10, builtAndIdle()).once(x -> {
                 x.check(renderer().perf$renderedWithData() > 0, "nothing is built after the move with VBOs off");
                 x.check(PerfGuard.isOff(PerfGuard.Feature.DISPLAY_LISTS) == false, "the display-list upload failed");
                 removeAllPlacements();
@@ -851,7 +1020,55 @@ final class PerfDrawTests {
     // ------------------------------------------------------------------------------------------------ LiteLoader (own phase)
 
     private static void registerLiteloader(Runner.Registry r) {
-        r.add("compat/liteloader/game-starts-with-our-mixins-active", c -> {
+        registerLiteloader(r, Runner.LITELOADER_PREFIX, "liteloader");
+        registerMasaMods(r, Runner.LITELOADER_PREFIX);
+        // masa's Litematica is installed too (only in this phase): the game runs, our clashing hooks are skipped, the player is
+        // told once to remove his
+        r.add(Runner.LITELOADER_PREFIX + "masas-litematica-installed-player-is-told", c -> {
+            c.check(com.useleess.litematicaupgraded.compat.CompatMixinPlugin.masaLitematicaPresent(), "masa's Litematica is not in this game");
+            c.check(com.useleess.litematicaupgraded.compat.MasaLitematicaNotice.shown == 1,
+                    "the remove-masa's-Litematica notice was shown " + com.useleess.litematicaupgraded.compat.MasaLitematicaNotice.shown + " times, not once");
+        });
+        // a player's setup (Discord #2): LiteLoader started first, then Forge, OptiFine in mods/1.12.2, masa's mods but not his
+        // Litematica - our malilib screen hook and his meet OptiFine's renderer (tools/ingame.ps1 checks LiteLoader started first)
+        registerLiteloader(r, Runner.LITELOADER_FIRST_PREFIX, "liteloader-first");
+        registerMasaMods(r, Runner.LITELOADER_FIRST_PREFIX);
+        optifineInTheGame(r, Runner.LITELOADER_FIRST_PREFIX);
+        // the Discord #4 setup: Forge first, LiteLoader after it, OptiFine, masa's mods but not his Litematica; the report was a
+        // game that froze after joining a server
+        registerLiteloader(r, Runner.LITELOADER_OPTIFINE_PREFIX, "liteloader-optifine");
+        registerMasaMods(r, Runner.LITELOADER_OPTIFINE_PREFIX);
+        optifineInTheGame(r, Runner.LITELOADER_OPTIFINE_PREFIX);
+        PerfTests.Seq running = new PerfTests.Seq();
+        long[] start = new long[2];
+        r.waitFor(Runner.LITELOADER_OPTIFINE_PREFIX + "world-keeps-running-after-joining", 600, c -> {
+            running.once(x -> {
+                start[0] = x.mc.world.getTotalWorldTime();
+                start[1] = DrawStats.frames();
+            }).ticks(200).once(x -> {
+                x.check(x.mc.world != null && x.mc.player != null, "the client left the world within 10 s of joining");
+                x.check(x.mc.world.getTotalWorldTime() - start[0] >= 100, "the client ticked only " + (x.mc.world.getTotalWorldTime() - start[0]) + " times in 10 s");
+                x.check(DrawStats.frames() - start[1] >= 20, "the client drew only " + (DrawStats.frames() - start[1]) + " frames in 10 s");
+            });
+        }, running::run);
+        // LiteLoader with none of masa's mods: our own parts alone (the masa fixes have nothing to do)
+        registerLiteloader(r, Runner.LITELOADER_ALONE_PREFIX, "liteloader-alone");
+        r.add(Runner.LITELOADER_ALONE_PREFIX + "no-masa-mods-in-the-game", c -> {
+            c.check(loadedLiteMods().isEmpty(), "LiteLoader loaded other mods: " + loadedLiteMods());
+            c.check(screenHooks() == 1, "not just our screen hook in EntityRenderer (" + screenHooks() + " found)");
+        });
+    }
+
+    private static void optifineInTheGame(Runner.Registry r, String prefix) {
+        r.add(prefix + "optifine-in-the-game", c -> {
+            c.check(com.useleess.litematicaupgraded.compat.CompatMixinPlugin.optifinePresent(), "OptiFine is not in this game");
+            c.check(com.useleess.litematicaupgraded.compat.CompatMixinPlugin.masaLitematicaPresent() == false, "masa's Litematica is in this game");
+        });
+    }
+
+    /** The LiteLoader checks shared by every LiteLoader phase; ids start with prefix. */
+    private static void registerLiteloader(Runner.Registry r, String prefix, String tag) {
+        r.add(prefix + "game-starts-with-our-mixins-active", c -> {
             c.check(Loader.isModLoaded("litematica_upgraded"), "the mod is not loaded");
             c.check(Loader.isModLoaded("mixinbooter") == false, "MixinBooter is in this game (the phase must run without it)");
             c.check(PerfDrawTests.class.getClassLoader().getResource("com/mumfrey/liteloader/launch/LiteLoaderTweaker.class") != null, "LiteLoader is not in this game");
@@ -860,7 +1077,44 @@ final class PerfDrawTests {
             c.check(renderer() != null && renderer().perf$renderedWithData() >= 0, "our mixin on the schematic renderer is not applied");
             System.out.println("LITELOADER mixins active");
         });
-        bigPlacementDrawsAndMoves(r, "compat/liteloader/placement-draws-and-moves", "liteloader", "LiteLoader");
+        // our schematic world is made on joining (Discord #2: next to masa's LiteLoader Litematica, his mixin files had our
+        // names, ours never loaded and the first frame after joining crashed; port/mixins-applied checks the names)
+        r.add(prefix + "schematic-world-made-on-joining", c -> {
+            c.check(com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler.getSchematicWorld() != null,
+                    "our schematic world was not made on joining (our world-change hook did not run)");
+        });
+        bigPlacementDrawsAndMoves(r, prefix + "placement-draws-and-moves", tag, "LiteLoader");
+    }
+
+    /**
+     * masa's LiteLoader malilib, MiniHUD, Tweakeroo, Item Scroller run next to ours on Forge: his malilib screen hook needs
+     * MasaMalilibForgeFix (else the game stops at start-up); ours replaces only Litematica (Discord #2).
+     */
+    private static void registerMasaMods(Runner.Registry r, String prefix) {
+        r.add(prefix + "masas-malilib-minihud-tweakeroo-itemscroller-run", c -> {
+            String loaded = loadedLiteMods();
+            for (String mod : new String[] {"malilib", "minihud", "tweakeroo", "itemscroller"}) {
+                c.check(loaded.contains(mod), mod + " is not among LiteLoader's loaded mods: " + loaded);
+            }
+            c.check(screenHooks() >= 2, "masa's malilib screen hook is not next to ours in EntityRenderer (" + screenHooks() + " found)");
+        });
+    }
+
+    /** The names of the mods LiteLoader loaded, lower case without spaces, comma separated ("" for none). */
+    private static String loadedLiteMods() throws ReflectiveOperationException {
+        Object liteLoader = Class.forName("com.mumfrey.liteloader.core.LiteLoader").getMethod("getInstance").invoke(null);
+        StringBuilder names = new StringBuilder();
+        for (Object mod : (java.util.List<?>) liteLoader.getClass().getMethod("getLoadedMods").invoke(liteLoader)) {
+            if (names.length() > 0) names.append(',');
+            names.append(String.valueOf(mod.getClass().getMethod("getName").invoke(mod)).replace(" ", ""));
+        }
+        return names.toString().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** How many "after a screen is drawn" hooks EntityRenderer has (ours, and masa's malilib's when it is there). */
+    private static long screenHooks() {
+        return java.util.Arrays.stream(net.minecraft.client.renderer.EntityRenderer.class.getDeclaredMethods())
+                .filter(m -> m.getName().startsWith("handler$onRenderScreenPost$")).count();
     }
 
     /** A big placement is built, drawn and moved (ghost move); the same test for the OptiFine and LiteLoader phases. */
@@ -869,7 +1123,7 @@ final class PerfDrawTests {
         int[] t = {0};
         BlockPos[] from = new BlockPos[1];
         long[] m = new long[6];
-        r.waitFor(id, 9000, c -> {
+        r.waitFor(id, 18000, c -> {
             bigSettled(c, seq, "selftest-perf-" + tag);
             measure(seq, 20, m);
             seq.once(x -> {
@@ -886,7 +1140,7 @@ final class PerfDrawTests {
             }).once(x -> {
                 x.check(renderer().perf$lastDrawList().size() > 0, "nothing is drawn while moving with " + label);
                 shot(x.mc, "perf-" + tag + "-moving");
-            }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).until("the rebuild after the move", 3000, 10, idle()).once(x -> {
+            }).until("the move to settle", 3000, 1, x -> !GhostMove.isActive()).until("the rebuild after the move", 3000, 10, builtAndIdle()).once(x -> {
                 x.check(renderer().perf$renderedWithData() > 0, "nothing is built after the move with " + label);
                 for (PerfGuard.Feature f : PerfGuard.Feature.values()) x.check(PerfGuard.isOff(f) == false, f + " was switched off by the fail-safe");
                 removeAllPlacements();

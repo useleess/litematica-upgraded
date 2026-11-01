@@ -1,7 +1,7 @@
 {
   "required": true,
   "package": "com.useleess.litematicaupgraded.mixin",
-  "plugin": "com.useleess.litematicaupgraded.compat.OptifineMixinPlugin",
+  "plugin": "com.useleess.litematicaupgraded.compat.CompatMixinPlugin",
   "compatibilityLevel": "JAVA_8",
   "minVersion": "0.7.5",
   "client": [
@@ -14,6 +14,7 @@
     "MixinSchematicBrowserScreenModern",
     "MixinSchematicEntryWidgetModern",
     "MixinMaterialListEntryWidgetReplace",
+    "MixinSchematicInfoWidgetPreview",
     "IMixinMaterialListPlacement",
     "MixinPerfDispatcher",
     "MixinPerfWorker",

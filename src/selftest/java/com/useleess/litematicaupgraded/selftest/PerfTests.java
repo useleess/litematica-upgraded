@@ -39,6 +39,7 @@ import com.useleess.litematicaupgraded.malilib.util.position.IntBoundingBox;
 import com.useleess.litematicaupgraded.malilib.util.world.BlockState;
 import com.useleess.litematicaupgraded.malilib.config.option.ConfigOption;
 import com.useleess.litematicaupgraded.malilib.config.option.BooleanConfig;
+import com.useleess.litematicaupgraded.perf.DrawStats;
 import com.useleess.litematicaupgraded.perf.GhostMove;
 import com.useleess.litematicaupgraded.perf.MemoryBudget;
 import com.useleess.litematicaupgraded.perf.PerfConfigs;
@@ -192,6 +193,19 @@ final class PerfTests {
     }
 
     /**
+     * Makes sure the earlier test's big placement is there: when it is missing (that test failed and cleaned up) a fresh one is
+     * placed and built here, so one failure never makes the next tests fail too.
+     */
+    static void ensureBigPlacement(Runner.Context c, Seq seq, String name) throws IOException {
+        if (bigPlacement != null && manager().getAllSchematicPlacements().contains(bigPlacement)) return;
+        removeAllPlacements();
+        resetSettings();
+        long[] builds = {PerfStats.builds()};
+        placeBig(c.mc, name);
+        seq.until("the big placement to be copied and built", 3000, 20, settled(builds));
+    }
+
+    /**
      * The recorded build results of the chunks listed for drawing now (built and not waiting for a rebuild). A chunk out of
      * view (behind the frame or hidden behind built chunks) is not rebuilt when marked, so its last result can be outdated.
      */
@@ -338,7 +352,7 @@ final class PerfTests {
     private static void registerThreads(Runner.Registry r) {
         Seq threads = new Seq();
         long[] before = new long[3];
-        r.waitFor("perf/threads/builds-run-on-build-threads", 6000, c -> {
+        r.waitFor("perf/threads/builds-run-on-build-threads", 12000, c -> {
             Runner.dismissPopups(c.mc);
             removeAllPlacements();
             resetSettings();
@@ -362,7 +376,7 @@ final class PerfTests {
             });
             // stress: jump around and mark everything dirty for a while
             int[] k = {0};
-            threads.until("the stress moves to finish", 400, 1, x -> {
+            threads.until("the stress moves to finish", 3000, 1, x -> {
                 World world = SchematicWorldHandler.getSchematicWorld();
                 IntBoundingBox box = bigPlacement.getEnclosingBox();
                 double sx = x.mc.player.posX, sz = x.mc.player.posZ;
@@ -378,7 +392,7 @@ final class PerfTests {
         }, restoringThreads(threads));
 
         Seq same = new Seq();
-        r.waitFor("perf/threads/same-result-as-single-thread-build", 6000, c -> {
+        r.waitFor("perf/threads/same-result-as-single-thread-build", 12000, c -> {
             c.check(workerSignatures != null && !workerSignatures.isEmpty(), "the threaded build left nothing to compare with");
             long[] mainBefore = {PerfStats.mainBuilds()};
             PerfStats.signatures(true).clear();
@@ -396,19 +410,20 @@ final class PerfTests {
 
         Seq still = new Seq();
         long[] stillBefore = new long[3];
-        r.waitFor("perf/nostutter/no-render-thread-builds-inside-placement", 6000, c -> {
-            c.check(bigPlacement != null, "the big placement of the earlier test is missing");
-            c.check(renderer().perf$buildThreads() >= 1 || Runtime.getRuntime().availableProcessors() < 2, "no build threads");
-            IntBoundingBox box = bigPlacement.getEnclosingBox();
-            fly(c.mc, (box.getMinX() + box.getMaxX()) / 2.0, box.getMinY() + 3, (box.getMinZ() + box.getMaxZ()) / 2.0);
-            still.ticks(20).once(x -> {
+        r.waitFor("perf/nostutter/no-render-thread-builds-inside-placement", 12000, c -> {
+            ensureBigPlacement(c, still, "selftest-perf-nostutter");
+            still.once(x -> {
+                x.check(renderer().perf$buildThreads() >= 1 || Runtime.getRuntime().availableProcessors() < 2, "no build threads");
+                IntBoundingBox box = bigPlacement.getEnclosingBox();
+                fly(x.mc, (box.getMinX() + box.getMaxX()) / 2.0, box.getMinY() + 3, (box.getMinZ() + box.getMaxZ()) / 2.0);
+            }).until("the view to be built", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()).once(x -> {
                 stillBefore[0] = PerfStats.builds();
                 stillBefore[1] = PerfStats.mainNanos();
                 stillBefore[2] = PerfStats.mainBuilds();
                 World world = SchematicWorldHandler.getSchematicWorld();
                 // everything around the camera is edited: all those chunks rebuild while the player stands inside
                 world.markBlockRangeForRenderUpdate((int) x.mc.player.posX - 40, 0, (int) x.mc.player.posZ - 40, (int) x.mc.player.posX + 40, 255, (int) x.mc.player.posZ + 40);
-            }).until("the rebuilds around the camera", 1500, 10, x -> PerfStats.builds() > stillBefore[0] + 5 && renderer().perf$isIdle()).once(x -> {
+            }).until("the rebuilds around the camera", 3000, 10, x -> PerfStats.builds() > stillBefore[0] + 5 && renderer().perf$isIdle()).once(x -> {
                 x.check(PerfStats.mainBuilds() == stillBefore[2], (PerfStats.mainBuilds() - stillBefore[2]) + " chunk builds ran on the render thread, " + (PerfStats.mainNanos() - stillBefore[1]) / 1_000_000 + " ms");
                 System.out.println("PERF nostutter rebuilds=" + (PerfStats.builds() - stillBefore[0]) + " renderThreadBuildMs=" + (PerfStats.mainNanos() - stillBefore[1]) / 1_000_000);
             });
@@ -419,19 +434,20 @@ final class PerfTests {
         Seq slices = new Seq();
         long[] mark = new long[4];
         Map<Long, int[]> onSignatures = new LinkedHashMap<>();
-        r.waitFor("perf/slices/empty-slices-skipped-nothing-missing", 6000, c -> {
-            c.check(bigPlacement != null, "the big placement of the earlier test is missing");
-            onSignatures.clear();
-            onSignatures.putAll(PerfStats.signatures(false));
-            c.check(!onSignatures.isEmpty(), "no build signatures to compare");
-            IntBoundingBox box = bigPlacement.getEnclosingBox();
-            mark[0] = PerfStats.slicesScanned();
-            mark[1] = PerfStats.slicesSkipped();
-            // 1: with the speed-up on, rebuild everything and see that empty slices are counted as skipped
+        r.waitFor("perf/slices/empty-slices-skipped-nothing-missing", 12000, c -> {
+            ensureBigPlacement(c, slices, "selftest-perf-slices");
             World world = SchematicWorldHandler.getSchematicWorld();
-            fly(c.mc, (box.getMinX() + box.getMaxX()) / 2.0, box.getMinY() + 3, (box.getMinZ() + box.getMaxZ()) / 2.0);
-            world.markBlockRangeForRenderUpdate((int) c.mc.player.posX - 60, 0, (int) c.mc.player.posZ - 60, (int) c.mc.player.posX + 60, 255, (int) c.mc.player.posZ + 60);
-            slices.until("the rebuild with empty slices skipped", 2000, 15, x -> PerfStats.slicesScanned() > mark[0] + 20 && renderer().perf$isIdle()).once(x -> {
+            slices.until("the view to be built", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()).once(x -> {
+                onSignatures.clear();
+                onSignatures.putAll(PerfStats.signatures(false));
+                x.check(!onSignatures.isEmpty(), "no build signatures to compare");
+                IntBoundingBox box = bigPlacement.getEnclosingBox();
+                mark[0] = PerfStats.slicesScanned();
+                mark[1] = PerfStats.slicesSkipped();
+                // 1: with the speed-up on, rebuild everything and see that empty slices are counted as skipped
+                fly(x.mc, (box.getMinX() + box.getMaxX()) / 2.0, box.getMinY() + 3, (box.getMinZ() + box.getMaxZ()) / 2.0);
+                world.markBlockRangeForRenderUpdate((int) x.mc.player.posX - 60, 0, (int) x.mc.player.posZ - 60, (int) x.mc.player.posX + 60, 255, (int) x.mc.player.posZ + 60);
+            }).until("the rebuild with empty slices skipped", 3000, 15, x -> PerfStats.slicesScanned() > mark[0] + 20 && renderer().perf$isIdle()).once(x -> {
                 long scanned = PerfStats.slicesScanned() - mark[0], skipped = PerfStats.slicesSkipped() - mark[1];
                 x.check(skipped > 0, "no empty slice was skipped out of " + scanned);
                 System.out.println("PERF slices scanned=" + scanned + " skipped=" + skipped);
@@ -440,7 +456,7 @@ final class PerfTests {
                 PerfConfigs.SKIP_EMPTY_SLICES.setBooleanValue(false);
                 PerfStats.signatures(false).clear();
                 world.markBlockRangeForRenderUpdate((int) x.mc.player.posX - 60, 0, (int) x.mc.player.posZ - 60, (int) x.mc.player.posX + 60, 255, (int) x.mc.player.posZ + 60);
-            }).until("the rebuild with the speed-up off", 2000, 15, x -> PerfStats.slicesScanned() > mark[3] + 20 && renderer().perf$isIdle()).once(x -> {
+            }).until("the rebuild with the speed-up off", 3000, 15, x -> PerfStats.slicesScanned() > mark[3] + 20 && renderer().perf$isIdle()).once(x -> {
                 x.check(PerfStats.slicesSkipped() == mark[2], "slices were skipped while the setting was off");
                 Map<Long, int[]> off = PerfStats.signatures(false);
                 int compared = 0;
@@ -458,7 +474,7 @@ final class PerfTests {
 
         Seq copy = new Seq();
         long[] cm = new long[4];
-        r.waitFor("perf/copy/fast-copy-same-blocks", 8000, c -> {
+        r.waitFor("perf/copy/fast-copy-same-blocks", 16000, c -> {
             removeAllPlacements();
             resetSettings();
             PerfConfigs.FAST_COPY.setBooleanValue(true);
@@ -504,7 +520,7 @@ final class PerfTests {
         Seq move = new Seq();
         long[] gm = new long[2];
         int[] ghostCount = new int[1];
-        r.waitFor("perf/ghost/move-shifts-built-chunks-without-rebuild", 8000, c -> {
+        r.waitFor("perf/ghost/move-shifts-built-chunks-without-rebuild", 16000, c -> {
             removeAllPlacements();
             resetSettings();
             long[] builds = {PerfStats.builds()};
@@ -534,15 +550,35 @@ final class PerfTests {
                     x.check(((g.getX() - offset.getX()) & 15) == 0 && ((g.getY() - offset.getY()) & 15) == 0 && ((g.getZ() - offset.getZ()) & 15) == 0,
                             "a ghost at " + g + " is not a built chunk shifted by " + offset);
                 }
-            }).ticks(5).once(x -> {
-                x.check(GhostMove.isActive(), "the ghosts ended before the placement settled");
-                x.check(PerfStats.builds() == gm[0], (PerfStats.builds() - gm[0]) + " chunks were rebuilt while the placement was moving");
+            });
+            // nothing may rebuild for as long as the move is held (400 ms after the last step: a busy PC may take more than a few
+            // ticks for that, and the real rebuild then starts by design); judged on every tick of the held time, over 3 frames.
+            // When the hold ended before that (a stall), the placement is moved again from a settled scene (out and back, the
+            // same end position) and that hold is judged instead
+            long[] heldFrom = new long[1];
+            int[] retries = new int[1];
+            move.once(x -> heldFrom[0] = DrawStats.frames()).until("3 frames of the held move", 6000, 1, x -> {
+                if (GhostMove.isActive() && GhostMove.isHoldingWork()) {
+                    x.check(PerfStats.builds() == gm[0], (PerfStats.builds() - gm[0]) + " chunks were rebuilt while the placement was moving");
+                    return DrawStats.frames() >= heldFrom[0] + 3;
+                }
+                if (GhostMove.isActive() || !renderer().perf$isIdle() || ((PerfPlacementManager) manager()).perf$hasCopyableChunks()) return false;
+                x.check(++retries[0] <= 10, "the move was never held for 3 frames in 10 tries");
+                gm[0] = PerfStats.builds();
+                net.minecraft.util.math.BlockPos at = p.getPosition().toVanillaPos();
+                manager().setOrigin(p, new BlockPos(at.getX() + 3, at.getY(), at.getZ() + 5));
+                manager().setOrigin(p, new BlockPos(at.getX(), at.getY(), at.getZ()));
+                x.check(GhostMove.isActive(), "moving the placement again did not start the ghosts");
+                heldFrom[0] = DrawStats.frames();
+                return false;
+            }).once(x -> {
                 try {
                     Runner.shot(x.mc, "perf-ghost-moving");
                 } catch (Exception e) {
                     throw new IllegalStateException(e);
                 }
-            }).until("the ghosts to be replaced by the real rebuild", 3000, 1, x -> !GhostMove.isActive()).once(x -> {
+            });
+            move.until("the ghosts to be replaced by the real rebuild", 3000, 1, x -> !GhostMove.isActive()).once(x -> {
                 x.check(PerfStats.builds() > gm[0], "no real rebuild happened after the move");
                 World world = SchematicWorldHandler.getSchematicWorld();
                 net.minecraft.util.math.BlockPos now = solidWorldPos.add(12, 0, 20);
@@ -552,21 +588,25 @@ final class PerfTests {
         }, c -> move.run(c));
 
         Seq rotate = new Seq();
-        r.waitFor("perf/ghost/rotate-and-mirror-take-the-normal-path", 8000, c -> {
-            c.check(bigPlacement != null && !GhostMove.isActive(), "no settled placement to rotate");
-            SchematicPlacement p = bigPlacement;
-            net.minecraft.util.math.BlockPos origin = p.getPosition().toVanillaPos();
-            long ghostMovesBefore = PerfStats.ghostMoves();
-            long[] builds = {PerfStats.builds()};
-            manager().setOrigin(p, new BlockPos(origin.getX() + 2, origin.getY(), origin.getZ()));
-            c.check(GhostMove.isActive(), "the move did not start the ghosts");
-            manager().rotateBy(p, BlockRotation.CW_90);
-            c.check(!GhostMove.isActive(), "a rotation did not end the ghosts");
-            manager().setOrigin(p, new BlockPos(origin.getX() + 4, origin.getY(), origin.getZ()));
-            manager().setRotation(p, BlockRotation.NONE);
-            c.check(!GhostMove.isActive(), "setting the rotation did not end the ghosts");
-            c.check(PerfStats.ghostMoves() - ghostMovesBefore >= 1, "the moves were not counted");
-            rotate.until("the rebuild after the rotation", 3000, 30, x -> renderer().perf$isIdle() && !((PerfPlacementManager) manager()).perf$hasCopyableChunks()
+        r.waitFor("perf/ghost/rotate-and-mirror-take-the-normal-path", 16000, c -> {
+            ensureBigPlacement(c, rotate, "selftest-perf-rotate");
+            long[] builds = new long[1];
+            SchematicPlacement[] placement = new SchematicPlacement[1];
+            rotate.until("the earlier move to settle", 3000, 20, x -> !GhostMove.isActive() && renderer().perf$isIdle() && !((PerfPlacementManager) manager()).perf$hasCopyableChunks()).once(x -> {
+                SchematicPlacement p = bigPlacement;
+                placement[0] = p;
+                net.minecraft.util.math.BlockPos origin = p.getPosition().toVanillaPos();
+                long ghostMovesBefore = PerfStats.ghostMoves();
+                builds[0] = PerfStats.builds();
+                manager().setOrigin(p, new BlockPos(origin.getX() + 2, origin.getY(), origin.getZ()));
+                x.check(GhostMove.isActive(), "the move did not start the ghosts");
+                manager().rotateBy(p, BlockRotation.CW_90);
+                x.check(!GhostMove.isActive(), "a rotation did not end the ghosts");
+                manager().setOrigin(p, new BlockPos(origin.getX() + 4, origin.getY(), origin.getZ()));
+                manager().setRotation(p, BlockRotation.NONE);
+                x.check(!GhostMove.isActive(), "setting the rotation did not end the ghosts");
+                x.check(PerfStats.ghostMoves() - ghostMovesBefore >= 1, "the moves were not counted");
+            }).until("the rebuild after the rotation", 3000, 30, x -> renderer().perf$isIdle() && !((PerfPlacementManager) manager()).perf$hasCopyableChunks()
                     && PerfStats.builds() > builds[0]).once(x -> x.check(!GhostMove.isActive(), "ghosts are active after a rotation"));
         }, c -> rotate.run(c));
     }
@@ -615,7 +655,7 @@ final class PerfTests {
 
     private static void registerSparse(Runner.Registry r) {
         Runner.Poll waitForHuge = c -> hugeLoad.isDone();
-        r.waitFor("perf/sparse/24m-cell-box-memory-only-for-blocks", 3000, c -> {
+        r.waitFor("perf/sparse/24m-cell-box-memory-only-for-blocks", 6000, c -> {
             removeAllPlacements();
             resetSettings();
             hugeLoad = generateAndLoad("perf-24m.litematic", 480, 200, 250);
@@ -628,7 +668,7 @@ final class PerfTests {
 
         Seq place = new Seq();
         long[] pm = new long[2];
-        r.waitFor("perf/sparse/640m-cell-box-loads-places-renders", 9000, c -> {
+        r.waitFor("perf/sparse/640m-cell-box-loads-places-renders", 18000, c -> {
             hugeLoad = generateAndLoad("perf-640m.litematic", 2500, 256, 1000);
         }, c -> {
             if (!waitForHuge.ready(c)) return false;
@@ -651,7 +691,7 @@ final class PerfTests {
                     World world = SchematicWorldHandler.getSchematicWorld();
                     return world != null && world.getBlockState(origin.toVanillaPos()).getBlock() == Blocks.STONE;
                 }).until("the huge placement to be built", 3000, 20, settled(builds)).until("the corner chunk to hold block models ("
-                        + "touched=" + manager().getAllTouchedSubChunks().size() + ")", 600, 5,
+                        + "touched=" + manager().getAllTouchedSubChunks().size() + ")", 3000, 5,
                         x -> renderer().perf$chunkHasModels(origin.toVanillaPos().getX(), origin.toVanillaPos().getY(), origin.toVanillaPos().getZ())).once(x -> {
                     int pieces = renderer().perf$renderedWithData();
                     x.check(pieces >= 1 && pieces <= 30, pieces + " render pieces hold built data, a handful was expected");

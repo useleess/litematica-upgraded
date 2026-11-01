@@ -1179,6 +1179,7 @@
   "litematica_upgraded.config.comment.perfskipemptyslices": "A 16-high slice of a placement that holds no blocks is skipped when building instead of being walked cell by cell.",
   "litematica_upgraded.config.comment.perfsparsestorage": "Big, mostly empty schematics only use memory for the 16 x 16 x 16 sections that hold blocks, and a file that does not fit in memory gives an error message instead of a crash.",
   "litematica_upgraded.config.comment.perfthreadedbuild": "Chunks next to you are built on the background threads too, so standing inside a big placement does not stutter. Off: those chunks are built on the render thread, as stock Litematica does.",
+  "litematica_upgraded.config.comment.preview3d": "Shows a small 3D view of the selected schematic that slowly turns around, in the lower part of the schematic browser's info panel. Big files are shown simplified. Off: no view is built or drawn.",
   "litematica_upgraded.config.comment.printerautotool": "Holds the tool from your inventory that mines the block fastest while the printer or the destroy assist mines.",
   "litematica_upgraded.config.comment.printeraxisorder": "The order the printer walks through the area: xzy, xyz, yxz, yzx, zxy or zyx (the first axis changes fastest).",
   "litematica_upgraded.config.comment.printerblockspertick": "How many blocks the printer places in one game tick (1 to 16).",
@@ -1219,6 +1220,7 @@
   "litematica_upgraded.config.name.perfskipemptyslices": "Skip Empty Slices",
   "litematica_upgraded.config.name.perfsparsestorage": "Sparse Storage",
   "litematica_upgraded.config.name.perfthreadedbuild": "Build Schematic Chunks On Threads",
+  "litematica_upgraded.config.name.preview3d": "3D Preview",
   "litematica_upgraded.config.name.printerautotool": "Auto Tool",
   "litematica_upgraded.config.name.printeraxisorder": "Axis Order",
   "litematica_upgraded.config.name.printerblockspertick": "Blocks Per Tick",
@@ -1260,6 +1262,7 @@
   "litematica_upgraded.message.import.source.litematica": "Litematica",
   "litematica_upgraded.message.import.source.schematica": "Schematica",
   "litematica_upgraded.message.import.source.schematica_upgraded": "Schematica Upgraded",
+  "litematica_upgraded.message.masa_litematica_installed": "Litematica Upgraded: masa's Litematica (LiteLoader) is also installed. Litematica Upgraded replaces it, and while both are installed some schematic features may not work. Remove the litematica-liteloader file from your mods folder (keep malilib, MiniHUD, Tweakeroo and Item Scroller).",
   "litematica_upgraded.message.material.replace_none": "Nothing to replace: no block of %s in the placement",
   "litematica_upgraded.message.material.replaced": "Replaced %s blocks of %s with %s",
   "litematica_upgraded.message.missing.convert_failed": "Could not convert %s; it was loaded as it is",
@@ -1285,9 +1288,13 @@
   "litematica_upgraded.message.server.refused.too_large": "This is larger than the server accepts.",
   "litematica_upgraded.message.server.saved": "The server saved the area (%s data parts).",
   "litematica_upgraded.message.server.sent": "Sent to the server: %s",
+  "litematica_upgraded.preview.building": "Building preview...",
+  "litematica_upgraded.preview.none": "No preview",
   "litematica_upgraded.title.screen.material.replace": "Replace %s with",
   "litematica_upgraded.title.screen.missing_blocks": "Blocks Minecraft 1.12 does not have: %s",
-  "litematica_upgraded.title.screen.missing_blocks.pick": "Block to use for %s"
+  "litematica_upgraded.title.screen.missing_blocks.pick": "Block to use for %s",
+  "litematica_upgraded.toast.config_failed.text": "Could not open: see the game log",
+  "litematica_upgraded.toast.config_failed.title": "Litematica Upgraded settings"
  },
  "malilib": {
   "malilib.button.action_list_screen.create_macro": "Create Macro",

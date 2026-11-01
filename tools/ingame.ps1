@@ -3,7 +3,16 @@
 #   forge: a throwaway Forge 1.12.2 dedicated server WITH the mod (installed by the Forge installer into the phase's own
 #          folder) - the server/ tests;
 #   optifine: the plain server again, OptiFine HD U G5 in the client mods (from _optifine/, never committed) - perf/optifine/.
-#   liteloader: the plain server again, the client = Forge + LiteLoader (Prism component) and NO MixinBooter - compat/liteloader/.
+#   liteloader: the plain server again, the client = Forge + LiteLoader (Prism component) and NO MixinBooter, masa's LiteLoader
+#               Litematica, malilib, MiniHUD, Tweakeroo, Item Scroller installed too - compat/liteloader/.
+#   liteloader-first: a player's setup (Discord #2): the plain server again, the client starts LiteLoader BEFORE Forge, OptiFine
+#               in mods/1.12.2, masa's malilib, MiniHUD, Tweakeroo, Item Scroller (not his Litematica), no MixinBooter -
+#               compat/liteloader-first/.
+#   liteloader-optifine: a player's setup (Discord #4): the plain server again, the client = Forge first, LiteLoader after it, OptiFine
+#               in mods/1.12.2, masa's malilib, MiniHUD, Tweakeroo, Item Scroller (not his Litematica), no MixinBooter; the client must
+#               keep ticking and drawing after joining - compat/liteloader-optifine/.
+#   liteloader-alone: the plain server again, the client = Forge + LiteLoader, none of masa's mods, no OptiFine, no MixinBooter
+#               - compat/liteloader-alone/.
 # Each phase: a throwaway Prism instance with Forge + MixinBooter (not in the liteloader phase) + the reobf'd mod jar + the selftest jar (never
 # released) joins the server and runs the in-world tests (-Dlitematicaupgraded.selftest.phase picks the tests). The
 # selftest prints SCOPE-TEST lines into the game log and "SCOPE-TEST done" at the end. Both logs are joined into
@@ -12,8 +21,12 @@
 $ErrorActionPreference = 'Continue'
 $here = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $here '_out'; New-Item -ItemType Directory -Force $out | Out-Null
-$prism = 'E:\PrismLauncher\prismlauncher.exe'
-$instRoot = 'E:\PrismLauncher\instances'
+# Prism: portable on E: on the test box; on this PC (--here) installed elsewhere with its data in %APPDATA%
+$prismData = if (Test-Path 'E:\PrismLauncher\accounts.json') { 'E:\PrismLauncher' } else { "$env:APPDATA\PrismLauncher" }
+$prism = @("$prismData\prismlauncher.exe", (Get-Process prismlauncher -EA 0 | Select -First 1 -Expand Path), 'D:\PrismLauncher\prismlauncher.exe',
+           "$env:LOCALAPPDATA\Programs\PrismLauncher\prismlauncher.exe") | Where-Object { $_ -and (Test-Path $_) } | Select -First 1
+if (-not $prism) { 'INGAME-FAIL: Prism Launcher not found'; exit 1 }
+$instRoot = Join-Path $prismData 'instances'
 $limitMin = if ($env:INGAME_LIMIT_MIN) { [int]$env:INGAME_LIMIT_MIN } else { 15 }
 $filter = $env:FILTER
 $jars = @(Get-ChildItem "$here\build\libs\litematica_upgraded-*.jar" | Where-Object { $_.Name -notmatch 'sources|dev' })
@@ -25,6 +38,10 @@ $forgeVersion = '1.12.2-14.23.5.2859'
 # support (11.18) in the OptiFine phase - both tested without an extra game launch
 $mixinBooterNew = 'https://maven.cleanroommc.com/zone/rong/mixinbooter/12.2/mixinbooter-12.2.jar'
 $mixinBooterOld = 'https://maven.cleanroommc.com/zone/rong/mixinbooter/11.18/mixinbooter-11.18.jar'
+# masa's own LiteLoader mods next to ours (Discord #2): players keep malilib, MiniHUD, Tweakeroo, Item Scroller; his Litematica,
+# which ours replaces, is there too: the game must run and tell the player to remove it
+$masaLitemods = @('litematica/litematica-liteloader-1.12.2-0.31.4', 'malilib/malilib-liteloader-1.12.2-0.54.0', 'minihud/minihud-liteloader-1.12.2-0.41.1',
+                  'tweakeroo/tweakeroo-liteloader-1.12.2-0.31.0', 'itemscroller/itemscroller-liteloader-1.12.2-0.31.1') | % { "https://masa.dy.fi/mcmods/$_.litemod" }
 function MixinBooterUrl([string]$phase) { if ($phase -eq 'optifine') { return $mixinBooterOld } else { return $mixinBooterNew } }
 
 Add-Type @'
@@ -41,17 +58,22 @@ public static class W {
 '@ -ReferencedAssemblies System.Drawing
 
 # Which phases the FILTER touches (no filter: both). server/fallback/ runs in the plain phase, the other server/ tests in the forge phase.
-function Wants([string]$id) { return (-not $filter) -or $id.StartsWith($filter) -or $filter.StartsWith($id) }
-$runPlain = (-not $filter) -or ((-not $filter.StartsWith('server/')) -and (-not $filter.StartsWith('compat/liteloader/'))) -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
+# FILTER may list several prefixes, comma separated
+$filters = @("$filter".Split(',') | Where-Object { $_ })
+function Wants([string]$id) { return (-not $filter) -or @($filters | Where-Object { $id.StartsWith($_) -or $_.StartsWith($id) }).Count -gt 0 }
+$runPlain = (-not $filter) -or @($filters | Where-Object { -not $_.StartsWith('server/') -and -not $_.StartsWith('compat/liteloader/') -and -not $_.StartsWith('compat/liteloader-first/') -and -not $_.StartsWith('compat/liteloader-alone/') -and -not $_.StartsWith('compat/liteloader-optifine/') }).Count -gt 0 -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
 $runForge = (-not $filter) -or (Wants 'server/')
 # Phase 3 (short): the plain server again, with OptiFine in the client (tools/check-ingame.sh puts its jar in _optifine/; it is never committed).
 $runOptifine = (-not $filter) -or (Wants 'perf/optifine/')
 # Phase 4 (short): the plain server again, the client runs Forge + LiteLoader and has NO MixinBooter (LiteLoader's own Mixin).
 $runLiteloader = (-not $filter) -or (Wants 'compat/liteloader/')
+$runLiteloaderFirst = (-not $filter) -or (Wants 'compat/liteloader-first/')
+$runLiteloaderAlone = (-not $filter) -or (Wants 'compat/liteloader-alone/')
+$runLiteloaderOptifine = (-not $filter) -or (Wants 'compat/liteloader-optifine/')
 $optifineJar = Get-ChildItem "$here\_optifine\OptiFine_*.jar" -EA 0 | Select -First 1
 
 # The test player's offline-mode uuid and name (whatever account Prism logs in with): op on the test servers, so tests can use /gamemode, /give, /setblock ...
-$accounts = Get-Content 'E:\PrismLauncher\accounts.json' -Raw | ConvertFrom-Json
+$accounts = Get-Content "$prismData\accounts.json" -Raw | ConvertFrom-Json
 $player = @($accounts.accounts | Where-Object { $_.active } | % { $_.profile.name }) + @($accounts.accounts | % { $_.profile.name }) | Where-Object { $_ } | Select -First 1
 $md5 = [System.Security.Cryptography.MD5]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes("OfflinePlayer:$player"))
 $md5[6] = ($md5[6] -band 0x0f) -bor 0x30; $md5[8] = ($md5[8] -band 0x3f) -bor 0x80
@@ -101,13 +123,15 @@ function Start-ForgeServer([string]$srv, [int]$port) {
 function Invoke-Phase([string]$phase) {
   $name = "zz-lu-ingame-$phase-" + (Get-Random -Maximum 99999)
   $prismBefore = @(Get-Process prismlauncher -EA 0 | Select -Expand Id)
-  $dir = Join-Path $instRoot $name; $mc = Join-Path $dir '.minecraft'
+  # built next to the instances folder and moved in whole just before launch: an open Prism looks at a new folder once,
+  # the moment it appears, and never takes it as an instance if its files come later
+  $dir = Join-Path $prismData "zz-staging-$name"; $mc = Join-Path $dir '.minecraft'
   $srv = Join-Path $here "_server-$phase"
   $server = $null
   try {
     $port = Find-FreePort
     $server = if ($phase -eq 'forge') { Start-ForgeServer $srv $port } else { Start-PlainServer $srv $port }
-    if ($phase -eq 'optifine' -and -not $optifineJar) { Write-Host "INGAME-FAIL: no OptiFine jar in _optifine/"; return }
+    if (($phase -in @('optifine', 'liteloader-first', 'liteloader-optifine')) -and -not $optifineJar) { Write-Host "INGAME-FAIL: no OptiFine jar in _optifine/"; return }
     if (-not $server) { return }
     for ($i = 0; $i -lt 150 -and -not ((Test-Path "$srv\logs\latest.log") -and (Select-String "$srv\logs\latest.log" -Pattern 'Done \(' -Quiet)); $i++) { Start-Sleep 2 }
     "[$phase] server port $port"
@@ -116,13 +140,18 @@ function Invoke-Phase([string]$phase) {
     New-Item -ItemType Directory -Force "$mc\mods" | Out-Null
     $jars | % { Copy-Item $_.FullName "$mc\mods\" }
     if ($phase -eq 'optifine') { Copy-Item $optifineJar.FullName "$mc\mods\" }
-    if ($phase -ne 'liteloader') { Invoke-WebRequest (MixinBooterUrl $phase) -OutFile "$mc\mods\mixinbooter.jar" -UseBasicParsing }
+    if ($phase -in @('liteloader-first', 'liteloader-optifine')) { New-Item -ItemType Directory -Force "$mc\mods\1.12.2" | Out-Null; Copy-Item $optifineJar.FullName "$mc\mods\1.12.2\" }
+    if ($phase -notlike 'liteloader*') { Invoke-WebRequest (MixinBooterUrl $phase) -OutFile "$mc\mods\mixinbooter.jar" -UseBasicParsing }
     Copy-Item "$instRoot\1.12 testing\mmc-pack.json" "$dir\mmc-pack.json"
-    if ($phase -eq 'liteloader') {
+    if ($phase -like 'liteloader*') {
       # LiteLoader as a Prism component after Forge (Prism fetches it into its own cache; its Mixin is the only one in the game)
       $pack = Get-Content "$dir\mmc-pack.json" -Raw | ConvertFrom-Json
-      $pack.components = @($pack.components) + [pscustomobject]@{ cachedName = 'LiteLoader'; cachedVersion = '1.12.2-SNAPSHOT'; uid = 'com.mumfrey.liteloader'; version = '1.12.2-SNAPSHOT' }
+      $liteLoader = [pscustomobject]@{ cachedName = 'LiteLoader'; cachedVersion = '1.12.2-SNAPSHOT'; uid = 'com.mumfrey.liteloader'; version = '1.12.2-SNAPSHOT' }
+      # listed before Forge, Prism starts LiteLoader first (as some players have it); after Forge, Forge starts first
+      $forgeAt = [array]::IndexOf(@($pack.components | % { $_.uid }), 'net.minecraftforge')
+      $pack.components = if ($phase -eq 'liteloader-first') { @($pack.components[0..($forgeAt - 1)]) + $liteLoader + @($pack.components[$forgeAt..($pack.components.Count - 1)]) } else { @($pack.components) + $liteLoader }
       $pack | ConvertTo-Json -Depth 10 | Set-Content "$dir\mmc-pack.json" -Encoding ascii
+      foreach ($url in $masaLitemods | Where-Object { $phase -eq 'liteloader' -or ($phase -in @('liteloader-first', 'liteloader-optifine') -and $_ -notlike '*/litematica-liteloader-*') }) { Invoke-WebRequest $url -OutFile "$mc\mods\$(Split-Path $url -Leaf)" -UseBasicParsing }
     }
     $jvm = "-Dlitematicaupgraded.selftest=client -Dlitematicaupgraded.selftest.phase=$phase -Dlitematicaupgraded.selftest.join=127.0.0.1:$port"
     if ($env:FILTER) { $jvm += " -Dlitematicaupgraded.selftest.filter=$($env:FILTER)" }
@@ -152,6 +181,7 @@ ShowConsole=false
       (Get-Item "$mc\config\schematica_plus.cfg").LastWriteTime = (Get-Date).AddDays(-1)
       "key_schematica.key.load:35" | Add-Content "$mc\options.txt" -Encoding ascii
     }
+    Move-Item $dir (Join-Path $instRoot $name); $dir = Join-Path $instRoot $name; $mc = Join-Path $dir '.minecraft'
     Start-Process -FilePath $prism -ArgumentList '-l', $name, '-s', "127.0.0.1:$port"
     $log = "$mc\logs\latest.log"; $game = $null; $done = $false; $deadline = (Get-Date).AddMinutes($limitMin); $i = 0
     while ((Get-Date) -lt $deadline) {
@@ -159,6 +189,8 @@ ShowConsole=false
       $game = Get-CimInstance Win32_Process -Filter "Name like 'java%'" | Where-Object { [string]$_.CommandLine -like "*$name*" } | Select -First 1
       if ((Test-Path $log) -and (Select-String $log -Pattern 'SCOPE-TEST done' -Quiet)) { $done = $true; break }
       if (Get-ChildItem "$mc\crash-reports" -EA 0) { break }
+      # a Prism that was already open (this PC, --here) may not know the new instance yet and ignores the launch: ask again
+      if ($i % 5 -eq 0 -and -not (Select-String "$dir\instance.cfg" -Pattern '^lastLaunchTime=' -Quiet)) { Start-Process -FilePath $prism -ArgumentList '-l', $name, '-s', "127.0.0.1:$port" }
       if ($i -gt 60 -and -not $game) { break }
       if ($i % 20 -eq 0) { $n = if (Test-Path $log) { @(Select-String $log -Pattern 'SCOPE-TEST (pass|fail|skip) ').Count } else { 0 }; "  [$phase] running $([int]($i * 3))s, $n results" }
     }
@@ -185,13 +217,21 @@ if ($runPlain) { Invoke-Phase 'plain' }
 if ($runForge) { Invoke-Phase 'forge' }
 if ($runOptifine) { Invoke-Phase 'optifine' }
 if ($runLiteloader) { Invoke-Phase 'liteloader' }
+if ($runLiteloaderFirst) { Invoke-Phase 'liteloader-first' }
+if ($runLiteloaderAlone) { Invoke-Phase 'liteloader-alone' }
+if ($runLiteloaderOptifine) { Invoke-Phase 'liteloader-optifine' }
 
 # One log for the verdict: the plain phase, then the forge phase, then the lines only this script can judge.
 $extra = New-Object System.Collections.Generic.List[string]
-foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader')) {
-  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'optifine' -and $runOptifine) -or ($phase -eq 'liteloader' -and $runLiteloader)) {
+foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) {
+  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'optifine' -and $runOptifine) -or ($phase -eq 'liteloader' -and $runLiteloader) -or ($phase -eq 'liteloader-first' -and $runLiteloaderFirst) -or ($phase -eq 'liteloader-alone' -and $runLiteloaderAlone) -or ($phase -eq 'liteloader-optifine' -and $runLiteloaderOptifine)) {
     if (-not $script:phaseDone[$phase]) { $extra.Add("SCOPE-TEST fail harness/phase-$phase :: the $phase phase did not finish") }
   }
+}
+if ($runLiteloaderFirst -and (Wants 'compat/liteloader-first/liteloader-started-first')) {
+  # the point of the phase: Prism started LiteLoader before Forge (its tweaker is the game's primary one)
+  $first = (Test-Path "$out\latest-liteloader-first.log") -and (Select-String "$out\latest-liteloader-first.log" -Pattern 'Using primary tweak class name com.mumfrey.liteloader.launch.LiteLoaderTweaker' -SimpleMatch -Quiet)
+  $extra.Add($(if ($first) { 'SCOPE-TEST pass compat/liteloader-first/liteloader-started-first' } else { 'SCOPE-TEST fail compat/liteloader-first/liteloader-started-first :: the game log does not show LiteLoader as the primary tweaker' }))
 }
 if ($runForge) {
   $serverLog = if (Test-Path "$out\server-forge.log") { Get-Content "$out\server-forge.log" -Raw } else { '' }
@@ -214,7 +254,7 @@ if ($runForge) {
   }
 }
 $parts = @()
-foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
+foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
 ($parts + ($extra -join "`n")) -join "`n" | Set-Content "$out\latest.log" -Encoding UTF8
 if ($extra.Count) { $extra }
 'INGAME-END'

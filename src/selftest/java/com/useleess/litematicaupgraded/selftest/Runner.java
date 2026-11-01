@@ -39,6 +39,12 @@ public final class Runner {
     static final String OPTIFINE_PREFIX = "perf/optifine/";
     /** The tests of the "liteloader" phase (a plain server, Forge + LiteLoader and no MixinBooter in the client). */
     static final String LITELOADER_PREFIX = "compat/liteloader/";
+    /** The tests of the "liteloader-first" phase (LiteLoader started before Forge, OptiFine, masa's mods: a player's setup, Discord #2). */
+    static final String LITELOADER_FIRST_PREFIX = "compat/liteloader-first/";
+    /** The tests of the "liteloader-optifine" phase (Forge first, LiteLoader after it, OptiFine, masa's mods: the Discord #4 setup). */
+    static final String LITELOADER_OPTIFINE_PREFIX = "compat/liteloader-optifine/";
+    /** The tests of the "liteloader-alone" phase (Forge + LiteLoader, none of masa's mods, no OptiFine). */
+    static final String LITELOADER_ALONE_PREFIX = "compat/liteloader-alone/";
     private static final int JOIN_TICKS = 20 * 600;
     private static final int SETTLE_TICKS = 60;
 
@@ -102,6 +108,9 @@ public final class Runner {
     /** Whether a test belongs to this run's phase. */
     static boolean inPhase(String id, String phase) {
         // the OptiFine phase (a plain server, OptiFine in the client) runs only its own short tests, and only there
+        if ("liteloader-optifine".equals(phase) || id.startsWith(LITELOADER_OPTIFINE_PREFIX)) return "liteloader-optifine".equals(phase) && id.startsWith(LITELOADER_OPTIFINE_PREFIX);
+        if ("liteloader-alone".equals(phase) || id.startsWith(LITELOADER_ALONE_PREFIX)) return "liteloader-alone".equals(phase) && id.startsWith(LITELOADER_ALONE_PREFIX);
+        if ("liteloader-first".equals(phase) || id.startsWith(LITELOADER_FIRST_PREFIX)) return "liteloader-first".equals(phase) && id.startsWith(LITELOADER_FIRST_PREFIX);
         if ("liteloader".equals(phase) || id.startsWith(LITELOADER_PREFIX)) return "liteloader".equals(phase) && id.startsWith(LITELOADER_PREFIX);
         if ("optifine".equals(phase) || id.startsWith(OPTIFINE_PREFIX)) return "optifine".equals(phase) && id.startsWith(OPTIFINE_PREFIX);
         boolean forgeOnly = false;
@@ -162,7 +171,7 @@ public final class Runner {
                 }
                 if (++settled < SETTLE_TICKS) return;
                 started = true;
-                registry.tests.removeIf(t -> !inPhase(t.id, PHASE) || !FILTER.isEmpty() && !t.id.startsWith(FILTER));
+                registry.tests.removeIf(t -> !inPhase(t.id, PHASE) || !FILTER.isEmpty() && java.util.Arrays.stream(FILTER.split(",")).noneMatch(t.id::startsWith));
                 System.out.println("SCOPE-TEST total " + registry.tests.size());
             }
             step(mc);

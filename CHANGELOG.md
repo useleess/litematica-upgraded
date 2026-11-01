@@ -1,5 +1,13 @@
 # Litematica Upgraded changelog
 
+## 0.2.2 (beta) - 2026-11-01
+
+- Fixed a crash right after joining a server when masa's LiteLoader Litematica was also installed (#2): our mixin files had the same names as his, so ours were not loaded. They now have their own names, and the schematic renderer no longer crashes if it is asked to draw before it is ready. masa's LiteLoader malilib, MiniHUD, Tweakeroo and Item Scroller now also start in a Forge + LiteLoader game next to Litematica Upgraded: his malilib has one hook that only fits plain LiteLoader and stopped the game on Forge (with or without our mod); Litematica Upgraded moves it to Forge's spot while the game starts. Litematica Upgraded replaces Litematica only - keep your other masa mods. If masa's Litematica is still installed too, the game no longer crashes: Litematica Upgraded tells you once in chat to remove it (some schematic features may not work while both are installed).
+- Fixed the game freezing after joining a server with masa's LiteLoader malilib + Tweakeroo installed (#4): same cause as #2; a new test game checks that exact setup (Forge first, LiteLoader, OptiFine, malilib, MiniHUD, Tweakeroo, Item Scroller) keeps running after joining.
+- Fixed the game not starting with LiteLoader + OptiFine (#2): the OptiFine safety switch did not work in LiteLoader's older Mixin, so an OptiFine-moved hook stopped the game. It now works in every load order (also when Prism starts LiteLoader before Forge), and masa's malilib hook is safe with OptiFine too.
+- New: a rotating 3D preview of the selected schematic in the schematic browser (lower part of the info panel; setting "3D Preview" in the Litematica Upgraded tab, on by default). It shows the build with its real blocks, turns on its own, drag with the left mouse to turn and tilt it, scroll to zoom. It appears almost instantly and is built in the background, so the menu never freezes; very big schematics show a smaller copy first (labelled 1:2, 1:3...), then every block. It switches itself off if anything goes wrong.
+- New: the "Config" button in Forge's Mods list (main menu -> Mods -> Litematica Upgraded) is no longer greyed out: it opens the Litematica Upgraded settings, and Done / Esc take you back to the list. If the settings screen cannot open, you stay on the list and a message says so.
+
 ## 0.2.1 - 2026-10-31
 
 - Credits completed: the mod list and the Credits setting now also name Schematica / Schematica Plus (MIT) and the translators.

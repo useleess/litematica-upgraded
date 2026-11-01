@@ -112,8 +112,12 @@ final class Tests {
             String configs;
             try (JarFile jf = new JarFile(modJar())) {
                 configs = jf.getManifest().getMainAttributes().getValue("MixinConfigs");
+                // masa's LiteLoader Litematica / malilib use these names: one of ours would hide his or the other way (Discord #2)
+                for (String his : new String[] {"mixins.litematica.json", "mixins.malilib.json", "mixins.litematica.refmap.json", "mixins.malilib.refmap.json"}) {
+                    c.check(jf.getEntry(his) == null, his + " is in our jar - the same name as in masa's mods");
+                }
             }
-            for (String name : new String[] {"mixins.litematica.json", "mixins.malilib.json"}) {
+            for (String name : new String[] {"mixins.litematica_upgraded.litematica.json", "mixins.litematica_upgraded.malilib.json"}) {
                 c.check(configs != null && configs.contains(name), name + " is not in the jar's MixinConfigs");
                 // every mixin class the json lists is in the jar; "applied to its target" is not checked yet (Class.forName
                 // from the game gives ClassNotFound for mixin.debug.GuiOverlayDebugMixin: open, see LADDER_NOTES.md)
@@ -132,7 +136,7 @@ final class Tests {
         // one (2026-10-29: a @Shadow of a parent's field) only crashed when that screen was opened - this loads them all now
         r.add("port/every-mixin-target-loads-with-its-mixin", c -> {
             int targets = 0;
-            for (String config : new String[] {"mixins.litematica.json", "mixins.malilib.json", "mixins.litematica_upgraded.json"}) {
+            for (String config : new String[] {"mixins.litematica_upgraded.litematica.json", "mixins.litematica_upgraded.malilib.json", "mixins.litematica_upgraded.json"}) {
                 for (String mixin : mixinClasses(config)) {
                     for (String target : mixinTargets(mixin)) {
                         targets++;
@@ -181,6 +185,7 @@ final class Tests {
         });
         r.waitFor("ui/config-screen-opens", 200, c -> ConfigScreen.openConfigScreen(), c -> c.mc.currentScreen != null
                 && c.mc.currentScreen.getClass().getName().contains("Config"));
+        ForgeButtonTests.register(r);
 
         // schematic/: .litematic files load, and what they hold matches the file
         r.add("schematic/load-cobblestone-farm", c -> {
@@ -236,6 +241,24 @@ final class Tests {
             camera.setPosition(c.mc.player.posX, c.mc.player.posY, c.mc.player.posZ);
             early.setupTerrain(c.mc.player, 0.5, camera, 1, false);
             early.setupTerrain(c.mc.player, 0.5, camera, 2, false);
+        });
+        // every step of a whole frame, both render paths, before the schematic world exists (Discord #2: crash in
+        // updateChunks right after joining a server, the step after the #1 fix)
+        r.add("render/whole-frame-before-schematic-world-does-not-crash", c -> {
+            com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic early =
+                    new com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic(c.mc);
+            early.setWorldAndLoadRenderers(null);
+            net.minecraft.client.renderer.culling.Frustum camera = new net.minecraft.client.renderer.culling.Frustum();
+            camera.setPosition(c.mc.player.posX, c.mc.player.posY, c.mc.player.posZ);
+            for (int frame = 1; frame <= 3; frame++) {
+                early.setupTerrain(c.mc.player, 0.5, camera, frame, false);
+                early.updateChunks(System.nanoTime() + 1_000_000L);
+                for (net.minecraft.util.BlockRenderLayer layer : net.minecraft.util.BlockRenderLayer.values()) {
+                    early.renderBlockLayer(layer, 0.5, c.mc.player);
+                }
+                early.renderEntities(c.mc.player, camera, 0.5f);
+                early.renderBlockOverlays();
+            }
         });
         r.waitFor("render/schematic-world-has-blocks", 600, c -> {
             LoadedSchematic loaded = load(c.mc, "minewave_worldeater.litematic");
@@ -317,6 +340,9 @@ final class Tests {
         r.add("lang/litematica-keys-resolve", c -> checkKeysResolve(c, "litematica"));
         r.add("lang/malilib-keys-resolve", c -> checkKeysResolve(c, "malilib"));
 
+        // preview/: the turning 3D view in the schematic browser
+        PreviewTests.register(r);
+
         // perf/: the speed-ups (they need the player in creative, so they run before the printer tests)
         PerfTests.register(r);
 
@@ -390,6 +416,7 @@ final class Tests {
     static void cleanup(Minecraft mc) {
         deleteTree(new File("selftest-tmp").getAbsoluteFile());
         ConvertTests.cleanup();
+        PreviewTests.cleanup();
     }
 
     private static void deleteTree(File f) {

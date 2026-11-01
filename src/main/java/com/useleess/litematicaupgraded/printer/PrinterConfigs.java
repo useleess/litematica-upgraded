@@ -15,6 +15,7 @@ import com.useleess.litematicaupgraded.malilib.config.option.StringConfig;
 import com.useleess.litematicaupgraded.malilib.input.Hotkey;
 import com.useleess.litematicaupgraded.malilib.util.data.ModInfo;
 import com.useleess.litematicaupgraded.perf.PerfConfigs;
+import com.useleess.litematicaupgraded.preview.PreviewConfigs;
 
 /** The settings of Litematica Upgraded's own features, in the "Litematica Upgraded" tab of Litematica's config screen. */
 public final class PrinterConfigs {
@@ -81,13 +82,14 @@ public final class PrinterConfigs {
     );
 
     /** Everything in the tab: the printer's settings, then the speed settings. */
-    public static final ImmutableList<ConfigOption<?>> OPTIONS = ImmutableList.<ConfigOption<?>>builder().addAll(PRINTER_OPTIONS).addAll(PerfConfigs.OPTIONS).build();
+    public static final ImmutableList<ConfigOption<?>> OPTIONS = ImmutableList.<ConfigOption<?>>builder().addAll(PRINTER_OPTIONS).addAll(PerfConfigs.OPTIONS).addAll(PreviewConfigs.OPTIONS).build();
 
     public static final ImmutableList<Hotkey> HOTKEYS = ImmutableList.of(PRINTER_ENABLED);
 
     public static final List<ConfigOptionCategory> CATEGORIES = ImmutableList.of(
             BaseConfigOptionCategory.normal(MOD_INFO, "Printer", PRINTER_OPTIONS),
             BaseConfigOptionCategory.normal(MOD_INFO, "Performance", PerfConfigs.OPTIONS),
+            BaseConfigOptionCategory.normal(MOD_INFO, "Preview", PreviewConfigs.OPTIONS),
             BaseConfigOptionCategory.normal(MOD_INFO, "Internal", ImmutableList.of(OLD_SETTINGS_IMPORTED))
     );
 

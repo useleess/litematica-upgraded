@@ -452,6 +452,12 @@ public class RenderGlobalSchematic extends RenderGlobal
     @Override
     public void updateChunks(long finishTimeNano)
     {
+        // not set up yet (no schematic world just after joining): nothing to build or upload (Discord #2)
+        if (this.renderDispatcher == null)
+        {
+            return;
+        }
+
         this.displayListEntitiesDirty |= this.renderDispatcher.runChunkUploads(finishTimeNano);
 
         if (this.chunksToUpdate.isEmpty() == false)
@@ -714,6 +720,11 @@ public class RenderGlobalSchematic extends RenderGlobal
     @Override
     public void renderEntities(Entity renderViewEntity, ICamera camera, float partialTicks)
     {
+        if (this.world == null)
+        {
+            return;
+        }
+
         if (this.renderEntitiesStartupCounter > 0)
         {
             --this.renderEntitiesStartupCounter;
