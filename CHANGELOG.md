@@ -1,5 +1,12 @@
 # Litematica Upgraded changelog
 
+## 0.2.3 (beta) - 2026-11-01
+
+- Clearer Easy Place setting names: the on/off switch is now just **Easy Place** (was "Easy Place Mode"), and the extra key is **Easy Place Hold Key (optional)** (was "Easy Place Activation"), with tooltips that say what each one does. Your saved settings are kept.
+- Fixed: entities in a schematic (iron golems, minecarts, armor stands...) were copied once for every chunk the schematic touches, so a farm with 30 golems showed (and pasted) hundreds of them and the game slowed to a crawl. Each entity is now placed once. Also fixed old preview entities staying in memory after the preview was refreshed.
+- New: loading a schematic that was saved after a paste with this old bug (from masa's original 1.12 Litematica) shows a chat warning with how many mobs were copied and how to clean it up. Nothing in the file is changed.
+- Fixed a crash (ConcurrentModificationException in the message display) when a message was shown while the 3D preview read a schematic in the background (#5). Messages from background work now always go through the game thread.
+
 ## 0.2.2 (beta) - 2026-11-01
 
 - Fixed a crash right after joining a server when masa's LiteLoader Litematica was also installed (#2): our mixin files had the same names as his, so ours were not loaded. They now have their own names, and the schematic renderer no longer crashes if it is asked to draw before it is ready. masa's LiteLoader malilib, MiniHUD, Tweakeroo and Item Scroller now also start in a Forge + LiteLoader game next to Litematica Upgraded: his malilib has one hook that only fits plain LiteLoader and stopped the game on Forge (with or without our mod); Litematica Upgraded moves it to Forge's spot while the game starts. Litematica Upgraded replaces Litematica only - keep your other masa mods. If masa's Litematica is still installed too, the game no longer crashes: Litematica Upgraded tells you once in chat to remove it (some schematic features may not work while both are installed).

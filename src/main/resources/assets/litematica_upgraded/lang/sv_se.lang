@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Stänger av skrivaren n
 litematica_upgraded.gui.button.material.replace=Ersätt
 litematica_upgraded.gui.hover.material.replace=Byter ut detta block mot ett annat i hela placeringen (riktning, halva och andra matchande egenskaper behålls). Endast det laddade schemat ändras; filen förblir oförändrad tills du sparar den. Ersätt tillbaka för att ångra.
 litematica_upgraded.title.screen.material.replace=Ersätt %s med
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r I schemat "%1$s" är %2$s mobbar som bara är kopior av %3$s: varje en sparades %4$s gånger. Detta beror på ett fel i masas ursprungliga Litematica för Minecraft 1.12, som klistrade in varje entitet en gång för varje chunk som bygget täckte, så ett schema som sparats efter en sådan inklistring behåller de extra kopiorna. De kan göra att spelet laggar. För att åtgärda det: bygg schemat en gång, ta bort de extra kopiorna av mobbarna och spara schemat igen. Litematica Upgraded har åtgärdat detta fel: nya inklistringar och nya scheman påverkas inte.
 litematica_upgraded.message.material.replaced=Ersatte %s block av %s med %s
 litematica_upgraded.message.material.replace_none=Inget att ersätta: inget block av %s finns i placeringen
 litematica_upgraded.config.name.credits=Krediter

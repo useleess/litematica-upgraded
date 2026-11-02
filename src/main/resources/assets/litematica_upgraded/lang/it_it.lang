@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Spegne la stampante qua
 litematica_upgraded.gui.button.material.replace=Sostituisci
 litematica_upgraded.gui.hover.material.replace=Scambia questo blocco con un altro in tutto il piazzamento (direzione, metà e altre proprietà corrispondenti sono mantenute). Cambia solo lo schema caricato; il file resta com'è finché non lo salvi. Sostituisci di nuovo per annullare.
 litematica_upgraded.title.screen.material.replace=Sostituisci %s con
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r Nello schema "%1$s", i mob %2$s sono copie di soli %3$s: ciascuno è stato salvato %4$s volte. Questo deriva da un bug del Litematica originale di masa per Minecraft 1.12, che incollava ogni entità una volta per ogni chunk coperto dalla costruzione, quindi uno schema salvato dopo un'incollatura del genere conserva le copie in più. Possono causare lag al gioco. Per risolvere: costruisci lo schema una volta, rimuovi le copie in più dei mob, poi salva di nuovo lo schema. Litematica Upgraded ha corretto questo bug: le nuove incollature e i nuovi schemi non ne sono colpiti.
 litematica_upgraded.message.material.replaced=Sostituiti %s blocchi di %s con %s
 litematica_upgraded.message.material.replace_none=Niente da sostituire: nessun blocco di %s nel piazzamento
 litematica_upgraded.config.name.credits=Crediti

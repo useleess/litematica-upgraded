@@ -1,5 +1,6 @@
 package com.useleess.litematicaupgraded;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -83,6 +84,14 @@ public class LangKeysTest {
     }
 
     /** One lang file (key -> text); a language that does not exist is empty. */
+    /** The Easy Place switch and its optional hold key are named so they are not mistaken for each other. */
+    @Test
+    public void easyPlaceSettingsAreNamedForWhatTheyDo() throws IOException {
+        Map<String, String> english = read("litematica", "en_us");
+        assertEquals("Easy Place", english.get("litematica.config.name.easyplacemode"));
+        assertEquals("Easy Place Hold Key (optional)", english.get("litematica.hotkey.name.easyplaceactivation"));
+    }
+
     private static Map<String, String> read(String domain, String language) throws IOException {
         Map<String, String> result = new LinkedHashMap<>();
         File file = new File("src/main/resources/assets/" + domain + "/lang/" + language + ".lang");

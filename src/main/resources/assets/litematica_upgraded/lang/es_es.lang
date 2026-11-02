@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Apaga la impresora cuan
 litematica_upgraded.gui.button.material.replace=Reemplazar
 litematica_upgraded.gui.hover.material.replace=Cambia este bloque por otro en toda la colocación (se mantienen la orientación, la mitad y otras propiedades coincidentes). Solo cambia el esquema cargado; el archivo se queda como está hasta que lo guardes. Reemplaza de nuevo para deshacer.
 litematica_upgraded.title.screen.material.replace=Reemplazar %s por
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r En el esquema "%1$s", %2$s mobs son copias de solo %3$s: cada uno se guardó %4$s veces. Esto se debe a un error del Litematica original de masa para Minecraft 1.12, que pegaba cada entidad una vez por cada chunk que ocupaba la construcción, de modo que un esquema guardado después de un pegado así conserva las copias extra. Pueden provocar lag en el juego. Para solucionarlo: construye el esquema una vez, elimina las copias extra de los mobs y guarda el esquema de nuevo. Litematica Upgraded ha corregido este error: los nuevos pegados y los nuevos esquemas no se ven afectados.
 litematica_upgraded.message.material.replaced=Reemplazados %s bloques de %s por %s
 litematica_upgraded.message.material.replace_none=Nada que reemplazar: ningún bloque de %s en la colocación
 litematica_upgraded.config.name.credits=Créditos

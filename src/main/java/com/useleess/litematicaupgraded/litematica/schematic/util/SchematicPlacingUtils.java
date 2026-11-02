@@ -658,7 +658,7 @@ public class SchematicPlacingUtils
             double y = pos.y + offY;
             double z = pos.z + offZ;
 
-            if (x < minX && x >= maxX && z < minZ && z >= maxZ)
+            if (x < minX || x >= maxX || z < minZ || z >= maxZ)
             {
                 continue;
             }

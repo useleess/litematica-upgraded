@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=죽으면 프린터를 
 litematica_upgraded.gui.button.material.replace=교체
 litematica_upgraded.gui.hover.material.replace=배치 전체에서 이 블록을 다른 블록으로 바꿉니다(방향, 반쪽 등 일치하는 속성은 유지됩니다). 불러온 스키매틱만 바뀌며, 저장하기 전까지 파일은 그대로입니다. 되돌리려면 다시 교체하세요.
 litematica_upgraded.title.screen.material.replace=%s을(를) 다음 블록으로 교체
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r 회로도 "%1$s"에서 %2$s 마리의 몹은 실제로 %3$s의 복사본입니다. 각 복사본은 %4$s번씩 저장되었습니다. 이는 마인크래프트 1.12용 masa의 원본 Litematica의 버그에서 비롯됩니다. 이 버그는 건축물이 걸쳐 있는 청크마다 모든 엔티티를 한 번씩 붙여넣었기 때문에, 이런 붙여넣기 뒤에 저장된 회로도에는 여분의 복사본이 남습니다. 이 복사본들은 게임을 느려지게 할 수 있습니다. 해결 방법: 건축물을 한 번 만들고, 여분의 몹 복사본을 제거한 다음 회로도를 다시 저장하세요. Litematica Upgraded는 이 버그를 수정했습니다. 새로 붙여넣은 것과 새로 저장한 회로도는 영향을 받지 않습니다.
 litematica_upgraded.message.material.replaced=%s의 블록 %s개를 %s(으)로 교체했습니다
 litematica_upgraded.message.material.replace_none=교체할 것이 없습니다: 배치 안에 %s 블록이 없습니다
 litematica_upgraded.config.name.credits=크레딧

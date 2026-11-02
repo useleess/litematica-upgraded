@@ -36,6 +36,9 @@ same table of 4 or more values twice: make one shared method or table instead.
 - `importer/`: the one-time import of keybinds and settings from LiteLoader Litematica, Schematica Upgraded and
   Schematica (`OldSettingsImport` reads, `ImportRules` decides, `ImportCore` applies to `LiveTarget`).
 - `litematica/`, `malilib/`: masa's code (above).
+- `entities/`: `CopiedEntities` warns in chat when a loaded schematic was saved after a paste with the entity copy bug of
+  masa's 1.12 Litematica (mobs saved as perfect twins, all the same number of times; armor stands / minecarts are no
+  evidence), unit tested; hooked in by `MixinSchematicHolderCopiedEntities`.
 - `materials/`: the material list's Replace (`MaterialReplace`: swaps the blocks of a row's item in the placement's
   loaded schematic, in the palette or block by block, rebuilds the schematic world, recounts the list; `ReplaceRules`:
   which properties carry over, unit tested). The button comes from `MixinMaterialListEntryWidgetReplace`, the

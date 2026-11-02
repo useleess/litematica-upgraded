@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=你死亡時關閉列�
 litematica_upgraded.gui.button.material.replace=替換
 litematica_upgraded.gui.hover.material.replace=在整個放置區域中，將此方塊換成另一種方塊（保留朝向、上下半部及其他相符的屬性）。只會改變已載入的原理圖，在你儲存之前檔案不會變動。再次替換即可復原。
 litematica_upgraded.title.screen.material.replace=將 %s 替換為
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r 在投影檔「%1$s」中，%2$s 個生物是僅 %3$s 的複本：每一個都被儲存了 %4$s 次。這是 masa 原版 Litematica（Minecraft 1.12）的一個錯誤造成的：它會為建築所覆蓋的每個區塊各貼上一次每個實體，因此在這樣貼上之後儲存的投影檔會保留這些多出來的複本。它們可能會造成遊戲延遲。修正方法：建造一次投影檔、移除多餘的生物複本，然後重新儲存投影檔。Litematica Upgraded 已修正此錯誤：新的貼上與新的投影檔都不會受影響。
 litematica_upgraded.message.material.replaced=已將 %s 中的 %s 個方塊替換為 %s
 litematica_upgraded.message.material.replace_none=沒有可替換的內容：放置區域中沒有 %s 方塊
 litematica_upgraded.config.name.credits=致謝

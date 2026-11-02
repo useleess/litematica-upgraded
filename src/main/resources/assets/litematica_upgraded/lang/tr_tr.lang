@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Öldüğünüzde yazıc
 litematica_upgraded.gui.button.material.replace=Değiştir
 litematica_upgraded.gui.hover.material.replace=Bu bloğu yerleşim boyunca başka bir blokla değiştirir (yön, yarım ve diğer uyan özellikler korunur). Yalnızca yüklü şematik değişir; kaydedene kadar dosya olduğu gibi kalır. Geri almak için yeniden Değiştir'e basın.
 litematica_upgraded.title.screen.material.replace=%s bloğunu şununla değiştir:
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r "%1$s" şematiğinde, %2$s yaratık yalnızca %3$s yaratığının kopyası: her biri %4$s kez kaydedilmiş. Bu, masa'nın Minecraft 1.12 için yazdığı özgün Litematica'daki bir hatadan kaynaklanıyor. Bu hata, yapının kapladığı her chunk için her varlığı bir kez daha yapıştırıyordu, bu yüzden böyle bir yapıştırmadan sonra kaydedilen şematik de fazladan kopyaları tutuyor. Bu kopyalar oyunun takılmasına neden olabilir. Düzeltmek için yapıyı bir kez inşa edin, fazla yaratık kopyalarını kaldırın, sonra şematiği yeniden kaydedin. Litematica Upgraded bu hatayı düzeltti: yeni yapıştırmalar ve yeni şematikler etkilenmez.
 litematica_upgraded.message.material.replaced=%s bloğundan %s tane %s ile değiştirildi
 litematica_upgraded.message.material.replace_none=Değiştirilecek bir şey yok: yerleşimde %s bloğu yok
 litematica_upgraded.config.name.credits=Katkıda Bulunanlar

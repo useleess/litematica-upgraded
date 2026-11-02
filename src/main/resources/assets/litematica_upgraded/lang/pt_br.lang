@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Desliga a impressora qu
 litematica_upgraded.gui.button.material.replace=Substituir
 litematica_upgraded.gui.hover.material.replace=Troca este bloco por outro em todo o posicionamento (direção, metade e outras propriedades correspondentes são mantidas). Só o esquema carregado muda; o arquivo continua igual até você salvá-lo. Substitua de volta para desfazer.
 litematica_upgraded.title.screen.material.replace=Substituir %s por
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r No esquema "%1$s", os mobs %2$s são cópias de apenas %3$s: cada um foi salvo %4$s vezes. Isso vem de um bug do Litematica original do masa para Minecraft 1.12, que colava cada entidade uma vez para cada chunk que a construção cobria, então um esquema salvo depois de uma dessas colagens mantém as cópias extras. Elas podem fazer o jogo travar. Para corrigir: construa o esquema uma vez, remova as cópias extras dos mobs e salve o esquema novamente. O Litematica Upgraded corrigiu esse bug: novas colagens e novos esquemas não são afetados.
 litematica_upgraded.message.material.replaced=Substituídos %s blocos de %s por %s
 litematica_upgraded.message.material.replace_none=Nada para substituir: nenhum bloco de %s no posicionamento
 litematica_upgraded.config.name.credits=Créditos

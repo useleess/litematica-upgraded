@@ -1,5 +1,7 @@
 package com.useleess.litematicaupgraded.litematica.world;
 
+import java.util.Collection;
+import java.util.HashSet;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.network.NetHandlerPlayClient;
@@ -33,6 +35,21 @@ public class WorldSchematic extends WorldClient
         ((IMixinWorldClient) (Object) this).setClientChunkProvider(provider);
 
         return provider;
+    }
+
+    /**
+     * A wiped chunk's entities leave the world at once: vanilla only queues them for the entity tick, which this world never
+     * runs, so every re-copy of a chunk would keep its old entities in memory.
+     */
+    @Override
+    public void unloadEntities(Collection<Entity> entities)
+    {
+        this.loadedEntityList.removeAll(new HashSet<>(entities));
+
+        for (Entity entity : entities)
+        {
+            this.onEntityRemoved(entity);
+        }
     }
 
     @Override

@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Schaltet den Drucker au
 litematica_upgraded.gui.button.material.replace=Ersetzen
 litematica_upgraded.gui.hover.material.replace=Tauscht diesen Block in der ganzen Platzierung gegen einen anderen aus (Ausrichtung, Hälfte und andere passende Eigenschaften bleiben erhalten). Nur die geladene Schematic ändert sich, die Datei bleibt unverändert, bis du sie speicherst. Zum Rückgängigmachen wieder ersetzen.
 litematica_upgraded.title.screen.material.replace=%s ersetzen durch
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r In der Schematik "%1$s" sind die Mobs von %2$s nur Kopien von %3$s: Jeder davon wurde %4$s-mal gespeichert. Das liegt an einem Fehler im originalen Litematica von masa für Minecraft 1.12, der jede Entität einmal pro Chunk, den der Bau umfasste, einfügte. Eine Schematik, die nach so einem Einfügen gespeichert wird, behält die zusätzlichen Kopien. Sie können das Spiel zum Ruckeln bringen. Zum Beheben: Baue die Schematik einmal, entferne die überzähligen Kopien der Mobs und speichere die Schematik dann erneut. Litematica Upgraded hat diesen Fehler behoben: Neue Einfügungen und neue Schematiken sind nicht betroffen.
 litematica_upgraded.message.material.replaced=%s Blöcke von %s durch %s ersetzt
 litematica_upgraded.message.material.replace_none=Nichts zu ersetzen: kein Block von %s in der Platzierung
 litematica_upgraded.config.name.credits=Danksagungen

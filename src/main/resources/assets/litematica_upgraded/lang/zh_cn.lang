@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=你死亡时关闭打�
 litematica_upgraded.gui.button.material.replace=替换
 litematica_upgraded.gui.hover.material.replace=将整个放置区内的该方块替换为另一种方块（保留朝向、半块及其他匹配的属性）。仅改变已加载的原理图，在你保存之前文件保持不变。再次替换即可撤销。
 litematica_upgraded.title.screen.material.replace=将%s替换为
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r 在投影文件 "%1$s" 中，%2$s 个生物是 %3$s 的副本：每个都被保存了 %4$s 次。这是 masa 原版 Litematica（Minecraft 1.12）中的一个漏洞导致的，它在粘贴时会为建筑所覆盖的每个区块各粘贴一次实体，因此在这种粘贴之后保存的投影文件会保留额外的副本。这些副本可能导致游戏卡顿。修复方法：建造一次投影，移除多余的生物副本，然后重新保存投影文件。Litematica Upgraded 已修复此漏洞：新的粘贴和新的投影文件不受影响。
 litematica_upgraded.message.material.replaced=已将%s个%s替换为%s
 litematica_upgraded.message.material.replace_none=没有可替换的内容：放置区内没有%s
 litematica_upgraded.config.name.credits=致谢

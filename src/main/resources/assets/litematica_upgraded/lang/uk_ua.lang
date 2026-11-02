@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Вимикає прин
 litematica_upgraded.gui.button.material.replace=Замінити
 litematica_upgraded.gui.hover.material.replace=Міняє цей блок на інший у всьому розміщенні (напрямок, половина та інші відповідні властивості зберігаються). Змінюється лише завантажена схематика, файл лишається незмінним, доки ви його не збережете. Замініть назад, щоб скасувати.
 litematica_upgraded.title.screen.material.replace=Замінити %s на
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r У схемі «%1$s» %2$s мобів є копіями лише %3$s: кожного з них було збережено %4$s разів. Це спричинено помилкою в оригінальній Litematica від masa для Minecraft 1.12, яка вставляла кожну сутність один раз для кожного чанка, що його охоплювала споруда, тож схема, збережена після такої вставки, зберігає зайві копії. Через них гра може лагати. Щоб виправити: побудуйте схему один раз, видаліть зайві копії мобів і збережіть схему знову. Litematica Upgraded виправила цю помилку: нові вставки та нові схеми не постраждають.
 litematica_upgraded.message.material.replaced=Замінено %s блоків %s на %s
 litematica_upgraded.message.material.replace_none=Нічого замінювати: у розміщенні немає блока %s
 litematica_upgraded.config.name.credits=Подяки

@@ -4,9 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import com.google.common.collect.ImmutableList;
+import net.minecraft.client.Minecraft;
 
 import com.useleess.litematicaupgraded.malilib.config.value.BaseOptionConfigValue;
 import com.useleess.litematicaupgraded.malilib.render.text.StyledText;
+import com.useleess.litematicaupgraded.malilib.util.game.wrap.GameWrap;
 import com.useleess.litematicaupgraded.malilib.util.ListUtils;
 
 public class MessageOutput extends BaseOptionConfigValue
@@ -38,12 +40,30 @@ public class MessageOutput extends BaseOptionConfigValue
 
     public void send(String message, MessageDispatcher messageDispatcher)
     {
-        this.stringMessageDispatcher.accept(message, messageDispatcher);
+        onGameThread(() -> this.stringMessageDispatcher.accept(message, messageDispatcher));
     }
 
     public void send(StyledText text, MessageDispatcher messageDispatcher)
     {
-        this.styledTextMessageDispatcher.accept(text, messageDispatcher);
+        onGameThread(() -> this.styledTextMessageDispatcher.accept(text, messageDispatcher));
+    }
+
+    /*
+     * The message lists are drawn on the game thread without a lock, so a message sent from another thread (a schematic
+     * read by the 3D preview, a save) waits for the game thread instead of changing a list while it is drawn.
+     */
+    private static void onGameThread(Runnable show)
+    {
+        Minecraft mc = GameWrap.getClient();
+
+        if (mc.isCallingFromMinecraftThread())
+        {
+            show.run();
+        }
+        else
+        {
+            mc.addScheduledTask(show);
+        }
     }
 
     @Override

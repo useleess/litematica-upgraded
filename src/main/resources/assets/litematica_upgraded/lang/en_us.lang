@@ -54,6 +54,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=Turns the printer off w
 litematica_upgraded.gui.button.material.replace=Replace
 litematica_upgraded.gui.hover.material.replace=Swaps this block for another one in the whole placement (facing, half and other matching properties are kept). Only the loaded schematic changes, the file stays as it is until you save it. Replace back to undo.
 litematica_upgraded.title.screen.material.replace=Replace %s with
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r In the schematic "%1$s", %2$s mobs are copies of just %3$s: each one was saved %4$s times. This comes from a bug in masa's original Litematica for Minecraft 1.12, which pasted every entity once for each chunk the build covered, so a schematic saved after such a paste keeps the extra copies. They can make the game lag. To fix it: build the schematic once, remove the extra copies of the mobs, then save the schematic again. Litematica Upgraded has fixed this bug: new pastes and new schematics are not affected.
 litematica_upgraded.message.material.replaced=Replaced %s blocks of %s with %s
 litematica_upgraded.message.material.replace_none=Nothing to replace: no block of %s in the placement
 litematica_upgraded.config.name.credits=Credits

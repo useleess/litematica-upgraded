@@ -237,6 +237,16 @@
    "what": "ONE modern schematic with every container type (hopper, furnace, dispenser, dropper, brewing stand, chest, trapped chest, barrel, shulker box, jukebox record, item frame, armor stand) converts with every slot's item, count and damage kept; furnaces load cold (no burn/cook progress)"
   },
   {
+   "prefix": "messages/",
+   "min": 1,
+   "what": "on-screen messages sent from another thread (e.g. the 3D preview reading a schematic) reach the screen through the game thread, no crash while the list is drawn (#5)"
+  },
+  {
+   "prefix": "entities/",
+   "min": 3,
+   "what": "a schematic's entities are placed once each, not once per chunk the schematic touches; copying a chunk again or removing the placement leaves none of the old entities behind; a schematic saved after a paste with that bug (mobs saved as perfect twins) gets a chat warning explaining it"
+  },
+  {
    "prefix": "perf/threads/",
    "min": 2,
    "what": "schematic chunks are built on background threads (not the render thread); the result is the same as a single-thread build (same blocks / quads), no crash or race under fast camera moves and placement edits"

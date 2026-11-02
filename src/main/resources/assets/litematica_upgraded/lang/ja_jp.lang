@@ -53,6 +53,7 @@ litematica_upgraded.config.comment.printerstopafterdeath=死亡したときに�
 litematica_upgraded.gui.button.material.replace=置換
 litematica_upgraded.gui.hover.material.replace=配置全体で、このブロックを別のブロックと入れ替えます（向き、半分、その他の対応するプロパティは維持されます）。変更されるのは読み込んでいる図面だけで、保存するまでファイルはそのままです。元に戻すには、逆方向に置換します。
 litematica_upgraded.title.screen.material.replace=%s を次に置換:
+litematica_upgraded.message.copied_entities=§e[Litematica Upgraded]§r スキーマティック「%1$s」では、%2$s 体のモブがそれぞれ %3$s のコピーになっています。各モブは %4$s 回保存されていました。これは masa 版の Litematica（Minecraft 1.12 向け）のバグが原因です。このバグでは、建築が重なるチャンクごとにすべてのエンティティが一度ずつ貼り付けられるため、そのような貼り付け後に保存されたスキーマティックには余分なコピーが残ります。これによりゲームが重くなることがあります。直すには、建築を一度作り直して余分なモブのコピーを削除し、スキーマティックを保存し直してください。Litematica Upgraded ではこのバグを修正済みです。新しい貼り付けと新しいスキーマティックは影響を受けません。
 litematica_upgraded.message.material.replaced=%s の %s 個のブロックを %s に置換しました
 litematica_upgraded.message.material.replace_none=置換するものがありません：配置の中に %s のブロックがありません
 litematica_upgraded.config.name.credits=クレジット

@@ -45,6 +45,9 @@ import com.useleess.litematicaupgraded.litematica.data.DataManager;
 import com.useleess.litematicaupgraded.litematica.gui.LoadedSchematicsListScreen;
 import com.useleess.litematicaupgraded.litematica.data.SchematicHolder;
 import com.useleess.litematicaupgraded.litematica.gui.ConfigScreen;
+import com.useleess.litematicaupgraded.litematica.config.Configs;
+import com.useleess.litematicaupgraded.litematica.config.Hotkeys;
+import com.useleess.litematicaupgraded.malilib.gui.config.BaseConfigScreen;
 import com.useleess.litematicaupgraded.litematica.gui.MainMenuScreen;
 import com.useleess.litematicaupgraded.litematica.gui.SchematicBrowserScreen;
 import com.useleess.litematicaupgraded.litematica.schematic.LoadedSchematic;
@@ -185,7 +188,20 @@ final class Tests {
         });
         r.waitFor("ui/config-screen-opens", 200, c -> ConfigScreen.openConfigScreen(), c -> c.mc.currentScreen != null
                 && c.mc.currentScreen.getClass().getName().contains("Config"));
+        // the two Easy Place settings read as "the switch" and "an optional extra key" (their old names were mixed up)
+        r.waitFor("ui/easy-place-setting-names", 200, c -> {
+            screenTicks = 0;
+            BaseScreen.openScreen(ConfigScreen.createOnTab(ConfigScreen.GENERIC));
+        }, c -> {
+            if (!(c.mc.currentScreen instanceof BaseConfigScreen) || ++screenTicks < 10) return false;
+            c.check(Configs.Generic.EASY_PLACE_MODE.getDisplayName().equals("Easy Place"), "the Easy Place switch is named " + Configs.Generic.EASY_PLACE_MODE.getDisplayName());
+            c.check(Hotkeys.EASY_PLACE_ACTIVATION.getDisplayName().equals("Easy Place Hold Key (optional)"), "the Easy Place hold key is named " + Hotkeys.EASY_PLACE_ACTIVATION.getDisplayName());
+            Runner.shot(c.mc, "ui-easy-place-settings");
+            c.mc.displayGuiScreen(null);
+            return true;
+        });
         ForgeButtonTests.register(r);
+        MessageTests.register(r);
 
         // schematic/: .litematic files load, and what they hold matches the file
         r.add("schematic/load-cobblestone-farm", c -> {
@@ -345,6 +361,9 @@ final class Tests {
 
         // perf/: the speed-ups (they need the player in creative, so they run before the printer tests)
         PerfTests.register(r);
+
+        // entities/: a schematic's entities reach the schematic world once each, and leave it with their chunk
+        EntityTests.register(r);
 
         // printer/, easyplace/, title/ (they set the player to survival, so they run last)
         PrinterTests.register(r);

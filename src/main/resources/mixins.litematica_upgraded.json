@@ -24,6 +24,7 @@
     "MixinPerfPlacingUtils",
     "MixinPerfLitematicaSchematic",
     "MixinPerfLoadedSchematic",
+    "MixinSchematicHolderCopiedEntities",
     "MixinPerfVboRenderList",
     "MixinPerfDisplayRenderList",
     "IMixinVertexBuffer",

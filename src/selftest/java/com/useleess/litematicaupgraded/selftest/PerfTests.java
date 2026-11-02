@@ -61,6 +61,7 @@ final class PerfTests {
     private static LoadedSchematic big;
     private static SchematicPlacement bigPlacement;
     private static Map<Long, int[]> workerSignatures;
+    private static Map<Long, Integer> workerRealWorld;
     private static long solidKey;
     private static net.minecraft.util.math.BlockPos solidWorldPos;
     private static IBlockState solidState;
@@ -221,12 +222,43 @@ final class PerfTests {
         return current;
     }
 
-    /** Fails when a chunk's quads differ between two sets of build results; returns how many chunks were in both. */
-    private static int compareSignatures(Runner.Context c, Map<Long, int[]> a, Map<Long, int[]> b, String nameA, String nameB) {
+    /**
+     * A fingerprint of the real world's blocks in each chunk section: the overlay part of a build compares the schematic with
+     * the real world, so two builds of a chunk can only be expected to match while its real blocks stayed the same.
+     */
+    static Map<Long, Integer> realWorldPrints(Iterable<Long> chunkKeys) {
+        World world = Minecraft.getMinecraft().world;
+        net.minecraft.util.math.BlockPos.MutableBlockPos pos = new net.minecraft.util.math.BlockPos.MutableBlockPos();
+        Map<Long, Integer> prints = new LinkedHashMap<>();
+        for (long key : chunkKeys) {
+            net.minecraft.util.math.BlockPos corner = net.minecraft.util.math.BlockPos.fromLong(key);
+            int hash = 1;
+            for (int y = 0; y < 16; y++) {
+                for (int z = 0; z < 16; z++) {
+                    for (int x = 0; x < 16; x++) {
+                        hash = 31 * hash + Block.getStateId(world.getBlockState(pos.setPos(corner.getX() + x, corner.getY() + y, corner.getZ() + z)));
+                    }
+                }
+            }
+            prints.put(key, hash);
+        }
+        return prints;
+    }
+
+    /**
+     * Fails when a chunk's quads differ between two sets of build results; returns how many chunks were in both. A chunk whose
+     * real blocks changed in between (aWorld: the fingerprints taken with a) is left out and logged, its builds had other input.
+     */
+    private static int compareSignatures(Runner.Context c, Map<Long, int[]> a, Map<Long, Integer> aWorld, Map<Long, int[]> b, String nameA, String nameB) {
         int compared = 0;
+        Map<Long, Integer> bWorld = realWorldPrints(b.keySet());
         for (Map.Entry<Long, int[]> e : b.entrySet()) {
             int[] first = a.get(e.getKey());
             if (first == null) continue;
+            if (!bWorld.get(e.getKey()).equals(aWorld.get(e.getKey()))) {
+                System.out.println("PERF compare skipped chunk " + net.minecraft.util.math.BlockPos.fromLong(e.getKey()) + ": its real blocks changed between the " + nameA + " and the " + nameB);
+                continue;
+            }
             compared++;
             c.check(java.util.Arrays.equals(first, e.getValue()), "chunk " + net.minecraft.util.math.BlockPos.fromLong(e.getKey()) + ": " + nameA + " "
                     + java.util.Arrays.toString(first) + " " + nameB + " " + java.util.Arrays.toString(e.getValue()));
@@ -368,6 +400,7 @@ final class PerfTests {
                 x.check(PerfStats.builds() - before[0] > 10, "only " + (PerfStats.builds() - before[0]) + " chunk builds happened");
                 x.check(PerfStats.mainBuilds() == before[1], (PerfStats.mainBuilds() - before[1]) + " builds ran on the render thread");
                 workerSignatures = currentSignatures(false);
+                workerRealWorld = realWorldPrints(workerSignatures.keySet());
                 int solid = 0;
                 for (int[] sig : workerSignatures.values()) if (sig[0] + sig[1] + sig[2] + sig[3] > 0) solid++;
                 x.check(solid >= 3, "only " + solid + " built chunks hold any model quads");
@@ -386,7 +419,7 @@ final class PerfTests {
             });
             threads.until("the builds after the stress", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()).once(x -> {
                 // the chunks built again by the threads during the stress made the same quads as their first threaded build
-                int again = compareSignatures(x, workerSignatures, currentSignatures(false), "first threaded build", "threaded rebuild");
+                int again = compareSignatures(x, workerSignatures, workerRealWorld, currentSignatures(false), "first threaded build", "threaded rebuild");
                 System.out.println("PERF threads rebuilt_same=" + again);
             });
         }, restoringThreads(threads));
@@ -401,7 +434,7 @@ final class PerfTests {
             renderer().perf$resetDispatcher();
             same.once(x -> x.check(renderer().perf$buildThreads() == 0, "the single-thread mode still has build threads")).until("the single-thread build", 3000, 30, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()
                     && PerfStats.mainBuilds() > mainBefore[0]).once(x -> {
-                int compared = compareSignatures(x, workerSignatures, currentSignatures(true), "threaded", "single");
+                int compared = compareSignatures(x, workerSignatures, workerRealWorld, currentSignatures(true), "threaded", "single");
                 x.check(compared >= 5, "only " + compared + " chunks were built both ways");
                 System.out.println("PERF threads compared=" + compared + " chunks, same quads");
                 autoThreads();
@@ -434,12 +467,15 @@ final class PerfTests {
         Seq slices = new Seq();
         long[] mark = new long[4];
         Map<Long, int[]> onSignatures = new LinkedHashMap<>();
+        Map<Long, Integer> onRealWorld = new LinkedHashMap<>();
         r.waitFor("perf/slices/empty-slices-skipped-nothing-missing", 12000, c -> {
             ensureBigPlacement(c, slices, "selftest-perf-slices");
             World world = SchematicWorldHandler.getSchematicWorld();
             slices.until("the view to be built", 3000, 20, x -> !((PerfPlacementManager) manager()).perf$hasCopyableChunks() && renderer().perf$isIdle()).once(x -> {
                 onSignatures.clear();
                 onSignatures.putAll(PerfStats.signatures(false));
+                onRealWorld.clear();
+                onRealWorld.putAll(realWorldPrints(onSignatures.keySet()));
                 x.check(!onSignatures.isEmpty(), "no build signatures to compare");
                 IntBoundingBox box = bigPlacement.getEnclosingBox();
                 mark[0] = PerfStats.slicesScanned();
@@ -458,15 +494,7 @@ final class PerfTests {
                 world.markBlockRangeForRenderUpdate((int) x.mc.player.posX - 60, 0, (int) x.mc.player.posZ - 60, (int) x.mc.player.posX + 60, 255, (int) x.mc.player.posZ + 60);
             }).until("the rebuild with the speed-up off", 3000, 15, x -> PerfStats.slicesScanned() > mark[3] + 20 && renderer().perf$isIdle()).once(x -> {
                 x.check(PerfStats.slicesSkipped() == mark[2], "slices were skipped while the setting was off");
-                Map<Long, int[]> off = PerfStats.signatures(false);
-                int compared = 0;
-                for (Map.Entry<Long, int[]> e : off.entrySet()) {
-                    int[] on = onSignatures.get(e.getKey());
-                    if (on == null) continue;
-                    compared++;
-                    x.check(java.util.Arrays.equals(on, e.getValue()), "chunk " + net.minecraft.util.math.BlockPos.fromLong(e.getKey()) + " differs with slices skipped: "
-                            + java.util.Arrays.toString(on) + " vs " + java.util.Arrays.toString(e.getValue()));
-                }
+                int compared = compareSignatures(x, onSignatures, onRealWorld, PerfStats.signatures(false), "build with empty slices skipped", "build with every slice scanned");
                 x.check(compared >= 5, "only " + compared + " chunks to compare");
                 PerfConfigs.SKIP_EMPTY_SLICES.setBooleanValue(true);
             });
