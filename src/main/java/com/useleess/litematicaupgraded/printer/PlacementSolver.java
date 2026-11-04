@@ -2,6 +2,7 @@
 package com.useleess.litematicaupgraded.printer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import net.minecraft.block.Block;
@@ -9,6 +10,7 @@ import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockDispenser;
 import net.minecraft.block.BlockEnderChest;
+import net.minecraft.block.BlockFalling;
 import net.minecraft.block.BlockFurnace;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.BlockWallSign;
@@ -24,12 +26,15 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import com.useleess.litematicaupgraded.litematica.config.Configs;
 import com.useleess.litematicaupgraded.litematica.mixin.IMixinItemBlockSpecial;
 
 /**
  * Every click the player could make (a face of a solid neighbour, at a few heights, with the current rotation or one of
  * the six straight ones, from the player's place or a fake one) is first simulated with the block's own
  * getStateForPlacement, the method the server runs for the same click. The first click that gives the schematic state is used.
+ * When no neighbour gives it, the free position itself is clicked, as Easy Place does: the game places a block in a free
+ * position it is clicked on, so this needs nothing to click on (servers that refuse it: Easy Place Click Adjacent turns it off).
  */
 public final class PlacementSolver {
     public static final class Solution {
@@ -41,11 +46,20 @@ public final class PlacementSolver {
         public final PrinterLook look;
         /** The feet position to report before the click (FakeStand); null keeps the player's. */
         public final Vec3d stand;
+        /** A click the game's own client would not send (RelaxedPlacement). */
+        public final boolean relaxed;
 
         Solution(BlockPos clicked, EnumFacing side, Vec3d hit, PrinterLook look, Vec3d stand) {
-            this.clicked = clicked; this.side = side; this.hit = hit; this.look = look; this.stand = stand;
+            this(clicked, side, hit, look, stand, false);
+        }
+
+        Solution(BlockPos clicked, EnumFacing side, Vec3d hit, PrinterLook look, Vec3d stand, boolean relaxed) {
+            this.clicked = clicked; this.side = side; this.hit = hit; this.look = look; this.stand = stand; this.relaxed = relaxed;
         }
     }
+
+    /** What a click is made on: a neighbour's face, the free position itself, or that with the game's own placing rules set aside. */
+    private enum Target { NEIGHBOUR, ITSELF, RELAXED }
 
     private static final float[] SIDE_HEIGHTS = {0.5f, 0.25f, 0.75f};
     /** Click order: the block below first, as a player builds. */
@@ -74,21 +88,20 @@ public final class PlacementSolver {
                                  boolean fakeRotation, boolean fakeStand) {
         if (stack.isEmpty()) return null;
         List<EnumFacing> sides = solidSides(world, pos);
-        if (sides.isEmpty()) return null;
         Block placedBlock = blockOf(stack.getItem());
-        if (placedBlock == null) return itemClick(target, pos, sides);
+        if (placedBlock == null) return sides.isEmpty() ? null : itemClick(target, pos, sides);
         PrinterLook[] rotations = PrinterLook.candidates(player.rotationYaw);
         PrinterLook[] looks = new PrinterLook[fakeRotation ? rotations.length + 1 : 1];
         if (fakeRotation) System.arraycopy(rotations, 0, looks, 1, rotations.length);
         double px = player.posX, py = player.posY, pz = player.posZ;
         float yaw = player.rotationYaw, pitch = player.rotationPitch;
         try {
-            Solution found = search(world, player, placedBlock, stack, target, pos, sides, looks, null);
+            Solution found = anyClick(world, player, placedBlock, stack, target, pos, sides, looks, null);
             if (found != null || !fakeStand) return found;
             // up and down facings of pistons, observers and the like need the player above or below the block
             for (Vec3d stand : FakeStand.candidates(world, player, pos)) {
                 player.posX = stand.x; player.posY = stand.y; player.posZ = stand.z;
-                found = search(world, player, placedBlock, stack, target, pos, sides, looks, stand);
+                found = anyClick(world, player, placedBlock, stack, target, pos, sides, looks, stand);
                 player.posX = px; player.posY = py; player.posZ = pz;
                 if (found != null) return found;
             }
@@ -125,32 +138,50 @@ public final class PlacementSolver {
             return sides.isEmpty() || target.getBlock() instanceof BlockBed ? null : itemClick(target, pos, sides);
         }
         for (EnumFacing direction : solidSides(world, pos)) {
-            BlockPos clicked = pos.offset(direction);
-            EnumFacing side = direction.getOpposite();
-            IBlockState placed = place(world, player, block, stack, pos, side, offset(side.getXOffset()), 0.5f, offset(side.getZOffset()));
-            if (placed != null && StateMatch.switchedPair(placed.getBlock(), target.getBlock())) {
-                return new Solution(clicked, side, center(clicked, side, 0.5f), null, null);
-            }
+            Solution found = makesBlock(world, player, block, stack, target, pos, pos.offset(direction), direction.getOpposite());
+            if (found != null) return found;
         }
-        return null;
+        return airClicks(world, block, pos) ? makesBlock(world, player, block, stack, target, pos, pos, EnumFacing.DOWN) : null;
     }
 
+    private static Solution makesBlock(World world, EntityPlayer player, Block block, ItemStack stack, IBlockState target, BlockPos pos, BlockPos clicked, EnumFacing side) {
+        IBlockState placed = world.mayPlace(block, pos, false, side, null) ? place(world, player, block, stack, pos, side, offset(side.getXOffset()), 0.5f, offset(side.getZOffset())) : null;
+        return placed != null && StateMatch.switchedPair(placed.getBlock(), target.getBlock()) ? new Solution(clicked, side, center(clicked, side, 0.5f), null, null) : null;
+    }
+
+    /** Whether the free position itself may be clicked: not where the server refuses it, nor for sand and the like with nothing under them (they would fall). */
+    private static boolean airClicks(World world, Block block, BlockPos pos) {
+        if (Configs.Generic.EASY_PLACE_CLICK_ADJACENT.getBooleanValue()) return false;
+        return !(block instanceof BlockFalling && BlockFalling.canFallThrough(world.getBlockState(pos.down())));
+    }
+
+    /** The neighbours' faces first, then the position itself. */
+    private static Solution anyClick(World world, EntityPlayer player, Block block, ItemStack stack, IBlockState target, BlockPos pos,
+                                     List<EnumFacing> sides, PrinterLook[] looks, Vec3d stand) {
+        Solution found = search(world, player, block, stack, target, pos, sides, looks, stand, Target.NEIGHBOUR);
+        if (found == null && airClicks(world, block, pos)) found = search(world, player, block, stack, target, pos, Arrays.asList(ORDER), looks, stand, Target.ITSELF);
+        if (found != null || !RelaxedPlacement.allowed(world, block) || !RelaxedPlacement.free() || !world.getBlockState(pos).getBlock().isReplaceable(world, pos)) return found;
+        return search(world, player, block, stack, target, pos, Arrays.asList(ORDER), looks, stand, Target.RELAXED);
+    }
+
+    /** Tries the clicks on the neighbours in the given directions, or on those faces of the position itself. */
     private static Solution search(World world, EntityPlayer player, Block block, ItemStack stack, IBlockState target, BlockPos pos,
-                                   List<EnumFacing> sides, PrinterLook[] looks, Vec3d stand) {
+                                   List<EnumFacing> sides, PrinterLook[] looks, Vec3d stand, Target on) {
         float yaw = player.rotationYaw, pitch = player.rotationPitch;
         for (EnumFacing direction : sides) {
-            BlockPos clicked = pos.offset(direction);
-            EnumFacing side = direction.getOpposite();
+            BlockPos clicked = on == Target.NEIGHBOUR ? pos.offset(direction) : pos;
+            EnumFacing side = on == Target.NEIGHBOUR ? direction.getOpposite() : direction;
             float[] heights = side.getAxis() != EnumFacing.Axis.Y ? SIDE_HEIGHTS : new float[] {side == EnumFacing.UP ? 1f : 0f};
             for (float height : heights) {
                 for (PrinterLook look : looks) {
                     player.rotationYaw = look == null ? yaw : look.yaw;
                     player.rotationPitch = look == null ? pitch : look.pitch;
-                    IBlockState placed = place(world, player, block, stack, pos, side, offset(side.getXOffset()), height, offset(side.getZOffset()));
+                    IBlockState placed = on == Target.RELAXED || world.mayPlace(block, pos, false, side, null)
+                        ? place(world, player, block, stack, pos, side, offset(side.getXOffset()), height, offset(side.getZOffset())) : null;
                     player.rotationYaw = yaw;
                     player.rotationPitch = pitch;
                     if (placed != null && StateMatch.placedMatches(placed, target)) {
-                        return new Solution(clicked, side, center(clicked, side, height), look, stand);
+                        return new Solution(clicked, side, center(clicked, side, height), look, stand, on == Target.RELAXED);
                     }
                 }
             }
@@ -170,7 +201,6 @@ public final class PlacementSolver {
     /** The state the item makes at pos when its neighbour is clicked on the given face (what ItemBlock.onItemUse asks the block), or null. */
     private static IBlockState place(World world, EntityPlayer player, Block block, ItemStack stack, BlockPos pos, EnumFacing side,
                                      float hx, float hy, float hz) {
-        if (!world.mayPlace(block, pos, false, side, null)) return null;
         int meta = stack.getItem() instanceof ItemBlock ? ((ItemBlock) stack.getItem()).getMetadata(stack.getMetadata()) : 0;
         return facedByPlacer(block, block.getStateForPlacement(world, pos, side, hx, hy, hz, meta, player, EnumHand.MAIN_HAND), pos, player);
     }

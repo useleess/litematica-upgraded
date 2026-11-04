@@ -23,7 +23,7 @@ public abstract class MixinPlayerControllerMP
             CallbackInfoReturnable<net.minecraft.util.EnumActionResult> cir)
     {
         // Prevent recursion, since the Easy Place mode can call this code again
-        if (EasyPlaceUtils.isHandling() == false)
+        if (EasyPlaceUtils.ignoresClick() == false)
         {
             if (EasyPlaceUtils.shouldDoEasyPlaceActions())
             {
@@ -61,7 +61,7 @@ public abstract class MixinPlayerControllerMP
             CallbackInfoReturnable<net.minecraft.util.EnumActionResult> cir)
     {
         // Prevent recursion, since the Easy Place mode can call this code again
-        if (EasyPlaceUtils.isHandling() == false)
+        if (EasyPlaceUtils.ignoresClick() == false)
         {
             if (EasyPlaceUtils.shouldDoEasyPlaceActions() &&
                 EasyPlaceUtils.handleEasyPlaceWithMessage())

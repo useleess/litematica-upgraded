@@ -12,6 +12,7 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+import com.useleess.litematicaupgraded.litematica.util.EasyPlaceUtils;
 import com.useleess.litematicaupgraded.server.ServerFeatures;
 import com.useleess.litematicaupgraded.server.net.MessageRangedClick;
 import com.useleess.litematicaupgraded.server.net.MessageRangedDig;
@@ -85,7 +86,23 @@ public final class PrinterRange {
                 (float) (hit.x - pos.getX()), (float) (hit.y - pos.getY()), (float) (hit.z - pos.getZ())));
             rangedClicksSent++;
         }
-        return mc.playerController.processRightClickBlock(player, mc.world, pos, side, hit, hand);
+        EasyPlaceUtils.setPrinterClicking(true);
+        try {
+            return mc.playerController.processRightClickBlock(player, mc.world, pos, side, hit, hand);
+        } finally {
+            EasyPlaceUtils.setPrinterClicking(false);
+        }
+    }
+
+    /** Uses the held item without a block face, as a bucket on a fluid. */
+    public static void use(EntityPlayerSP player, EnumHand hand) {
+        Minecraft mc = Minecraft.getMinecraft();
+        EasyPlaceUtils.setPrinterClicking(true);
+        try {
+            mc.playerController.processRightClick(player, mc.world, hand);
+        } finally {
+            EasyPlaceUtils.setPrinterClicking(false);
+        }
     }
 
     /** Whether the server's vanilla check may refuse the click (the server's position may differ a little). */

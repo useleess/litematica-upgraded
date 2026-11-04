@@ -111,7 +111,7 @@ public final class FluidPrinter {
                     if (!selectContainer.test(container)) continue;
                     player.connection.sendPacket(new CPacketPlayer.Rotation(aimYaw, aimPitch, player.onGround));
                     sentLook = true;
-                    minecraft.playerController.processRightClick(player, world, EnumHand.MAIN_HAND);
+                    PrinterRange.use(player, EnumHand.MAIN_HAND);
                     player.swingArm(EnumHand.MAIN_HAND);
                     return true;
                 }

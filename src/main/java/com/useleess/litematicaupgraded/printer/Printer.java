@@ -113,6 +113,7 @@ public final class Printer {
         if (isEnabled() && PrinterConfigs.STOP_AFTER_DEATH.getBooleanValue() && mc.player != null && (mc.player.getHealth() <= 0 || mc.player.isDead)) {
             PrinterConfigs.PRINTER_ENABLED.setBooleanValue(false);
         }
+        RelaxedPlacement.tick(mc.world);
         ManualMining.tick(mc);
         if (!isEnabled()) {
             ManualMining.forget();
@@ -274,10 +275,11 @@ public final class Printer {
     private Result placeBlock(Minecraft mc, EntityPlayerSP player, WorldClient world, World schematic, Candidate candidate) {
         // snow: one layer is placed like any block, the rest is clicked on afterwards
         IBlockState target = SnowLayers.firstLayer(candidate.target);
+        if (RelaxedPlacement.waitingFor(candidate.pos)) return Result.DONE;
         if (Scaffold.needed(world, schematic, candidate.pos, target)) {
-            // the server part places the gate in the air; else a temporary block goes under it
+            // the server part places the gate in the air; or Carpet's rule lets it stand there; else a temporary block goes under it
             if (ServerAssist.air(target)) return placeInAir(mc, player, candidate.pos, target);
-            if (PrinterConfigs.SCAFFOLD.getBooleanValue()) return placeScaffold(mc, player, world, candidate.pos.down());
+            if (!RelaxedPlacement.allowed(world, target.getBlock()) && PrinterConfigs.SCAFFOLD.getBooleanValue()) return placeScaffold(mc, player, world, candidate.pos.down());
         }
         ItemStack required = MaterialCache.getInstance().getRequiredBuildItemForState(BlockState.of(candidate.target));
         if (required == null || required.isEmpty()) return Result.FAILED;
@@ -591,7 +593,7 @@ public final class Printer {
         if (solution.look != null) turn(player, solution.look.yaw, solution.look.pitch);
         boolean sneaking = sneak && EntityUtils.setFakedSneakingState(true);
         try {
-            EnumActionResult result = PrinterRange.click(player, solution.clicked, solution.side, solution.hit, hand);
+            EnumActionResult result = solution.relaxed ? RelaxedPlacement.send(player, solution, hand) : PrinterRange.click(player, solution.clicked, solution.side, solution.hit, hand);
             if (result == EnumActionResult.SUCCESS) player.swingArm(hand);
             return result == EnumActionResult.SUCCESS;
         } finally {

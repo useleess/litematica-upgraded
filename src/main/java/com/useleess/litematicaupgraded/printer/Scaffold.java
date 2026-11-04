@@ -15,7 +15,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 /**
- * In 1.12 a fence gate can only be placed on a solid block, but once placed it stays when that block goes; builds with
+ * In 1.12 a fence gate can only be placed on a solid block (unless Carpet's relaxedBlockPlacement is on: RelaxedPlacement), but once placed it stays when that block goes; builds with
  * gates over air or water (water stoppers in farms) were made with a temporary block under each gate. The printer does
  * the same: a scaffold block under the gate, the gate, then the scaffold is mined away again.
  */

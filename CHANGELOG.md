@@ -1,5 +1,11 @@
 # Litematica Upgraded changelog
 
+## 0.2.5 (beta) - 2026-11-04
+
+- The printer places blocks in mid-air with nothing around them, on any server, the way Easy Place does, in their exact state (for example an upside-down stair with only the floor nearby). Sand and gravel still wait for something under them, and the Easy Place Click Adjacent setting turns this off for servers that refuse clicks on empty space.
+- On Carpet servers with `relaxedBlockPlacement` on, the printer places fence gates and pumpkins in mid-air too, with or without Carpet Client. It finds out by trying once; if the server refuses, fence gates go back to using a temporary block for that world.
+- The printer now works with Easy Place switched on. Before, while you looked at a block of the schematic, its clicks turned into Easy Place clicks at your crosshair, so only the block you looked at got built.
+
 ## 0.2.4 (beta) - 2026-11-04
 
 - The LGPL-3.0 licence text now ships inside the jar (`META-INF/LICENSE-LGPL-3.0.txt`), next to the MIT one.

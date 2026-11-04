@@ -2,4 +2,4 @@
 
 Collected here until the next release, then used as the GitHub / Modrinth notes.
 
-(nothing yet - 0.2.4 pushed 2026-11-04)
+(nothing yet - 0.2.5 pushed 2026-11-04)

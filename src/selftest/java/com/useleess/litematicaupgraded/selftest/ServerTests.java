@@ -220,6 +220,8 @@ final class ServerTests {
         // server/air/: a fence gate over nothing, placed by the server, no scaffold block
         Scenario air = new Scenario("server/air/fence-gate-over-air-placed-directly");
         air.put(0, 1, 0, GATE);
+        // the block of an earlier test on this site must be gone before the check starts: it remembers what it saw here
+        air.preplaced.put(new BlockPos(0, 0, 0), Blocks.AIR.getDefaultState());
         int[] airBefore = {0};
         boolean[] scaffold = {false};
         air.at.put(0, c -> airBefore[0] = ServerAssist.airSent);
@@ -363,6 +365,10 @@ final class ServerTests {
         Scenario a1 = accurate(prefix + "stairs-facing-and-half");
         a1.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
         register(r, a1);
+        Scenario air = accurate(prefix + "piston-and-top-stairs-in-mid-air");
+        air.put(0, 2, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.DOWN));
+        air.put(3, 2, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
+        register(r, air);
         Scenario a2 = accurate(prefix + "piston-facing-down-on-the-ground");
         a2.put(0, 0, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.DOWN));
         register(r, a2);

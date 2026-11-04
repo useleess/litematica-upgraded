@@ -107,6 +107,16 @@
    "what": "best tool picked from the inventory for mining; hoe tills farmland, flint and steel lights portals"
   },
   {
+   "prefix": "printer/air/",
+   "min": 6,
+   "what": "blocks with nothing to click on, on a server without any mod: the printer clicks the free position itself like Easy Place (exact state too, also where only the floor is near); Easy Place Click Adjacent turns it off; sand and the like wait for something under them"
+  },
+  {
+   "prefix": "printer/with-easy-place/",
+   "min": 3,
+   "what": "the printer with Easy Place switched on: it still builds and fills around the player, its clicks are not turned into Easy Place clicks on what the player looks at"
+  },
+  {
    "prefix": "printer/scaffold/",
    "min": 1,
    "what": "fence gate over air: temporary block under it, gate, scaffold mined away again"
@@ -395,6 +405,11 @@
    "prefix": "uc/shulker/",
    "min": 4,
    "what": "shulker restock through UC's rule, real client and real server"
+  },
+  {
+   "prefix": "uc/air/",
+   "min": 2,
+   "what": "Carpet's relaxedBlockPlacement on a real Useleess Carpet server: the printer places fence gates and pumpkins in mid-air; with the rule off it falls back to the scaffold"
   },
   {
    "prefix": "uc/live/",

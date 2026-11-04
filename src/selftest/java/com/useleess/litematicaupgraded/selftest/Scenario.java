@@ -210,6 +210,7 @@ final class Scenario {
         PrinterConfigs.USE_TOOLS.setBooleanValue(true);
         PrinterConfigs.SCAFFOLD.setBooleanValue(true);
         PrinterConfigs.FILL_CONTAINERS.setBooleanValue(false);
+        com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_MODE.setBooleanValue(false);
         PrinterConfigs.CONTAINER_GRAB.setBooleanValue(false);
         PrinterConfigs.FLUIDS.setBooleanValue(true);
         PrinterConfigs.ICE_WATER.setBooleanValue(true);
@@ -229,6 +230,10 @@ final class Scenario {
         double dx = mc.player.posX - (origin.getX() + standX), dz = mc.player.posZ - (origin.getZ() + standZ);
         if (dx * dx + dz * dz > 1 || Math.abs(mc.player.posY - 101) > 1.5) return "not at the site yet (" + mc.player.posX + ", " + mc.player.posY + ", " + mc.player.posZ + ")";
         if (!mc.world.getBlockState(origin.down()).getBlock().getRegistryName().toString().equals("minecraft:stone")) return "the platform is not there yet";
+        // a site is reused: the client gets the cleared blocks after the teleport, and checks remember what they saw
+        for (BlockPos rel : build.keySet()) {
+            if (!preplaced.containsKey(rel) && !mc.world.isAirBlock(world(rel))) return "the block of an earlier test is still at " + rel;
+        }
         for (Map.Entry<BlockPos, IBlockState> e : preplaced.entrySet()) {
             if (!StateMatch.placedMatches(mc.world.getBlockState(world(e.getKey())), e.getValue())) return "a pre-placed block is not there yet at " + e.getKey();
         }

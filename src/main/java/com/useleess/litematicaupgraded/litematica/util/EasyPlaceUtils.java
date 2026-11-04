@@ -62,6 +62,7 @@ public class EasyPlaceUtils
     private static final HashMap<Block, Boolean> HAS_USE_ACTION_CACHE = new HashMap<>();
 
     private static boolean isHandling;
+    private static boolean printerClicking;
     private static boolean isFirstClickEasyPlace;
     private static boolean isFirstClickPlacementRestriction;
 
@@ -73,6 +74,17 @@ public class EasyPlaceUtils
     public static void setHandling(boolean handling)
     {
         isHandling = handling;
+    }
+
+    /** The printer's clicks aim at their own blocks, wherever the player looks. */
+    public static void setPrinterClicking(boolean clicking)
+    {
+        printerClicking = clicking;
+    }
+
+    public static boolean ignoresClick()
+    {
+        return isHandling || printerClicking;
     }
 
     public static void setIsFirstClick()

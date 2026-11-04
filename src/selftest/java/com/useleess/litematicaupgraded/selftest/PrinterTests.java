@@ -392,9 +392,28 @@ final class PrinterTests {
         };
         register(r, t2);
 
+        // printer/air/: blocks with nothing to click on, as Easy Place places them (a plain server)
+        IBlockState topStairs = Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP);
+        register(r, new Scenario("printer/air/stone-with-nothing-around").put(0, 2, 0, Blocks.STONE.getDefaultState()));
+        register(r, new Scenario("printer/air/stairs-keep-their-state").put(0, 2, 0, topStairs));
+        register(r, new Scenario("printer/air/top-stairs-on-the-floor").put(0, 0, 0, topStairs));
+        register(r, new Scenario("printer/air/top-slab").put(0, 2, 0, Blocks.STONE_SLAB.getDefaultState().withProperty(net.minecraft.block.BlockSlab.HALF, net.minecraft.block.BlockSlab.EnumBlockHalf.TOP)));
+        Scenario adjacentOnly = new Scenario("printer/air/easy-place-click-adjacent-turns-it-off").put(0, 2, 0, Blocks.STONE.getDefaultState());
+        adjacentOnly.at.put(0, c -> com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_CLICK_ADJACENT.setBooleanValue(true));
+        stayEmpty(r, adjacentOnly);
+        stayEmpty(r, new Scenario("printer/air/sand-waits-for-something-under-it").put(0, 2, 0, Blocks.SAND.getDefaultState()));
+
+        // printer/with-easy-place/: Easy Place takes clicks only while the crosshair is on a schematic block, so the player looks at one
+        Scenario withEasyPlace = new Scenario("printer/with-easy-place/builds-what-the-player-does-not-look-at");
+        withEasyPlace.put(0, 0, 0, STONE).put(4, 0, 0, STONE).put(0, 0, 6, STONE).put(4, 0, 6, STONE);
+        easyPlaceLookingAt(withEasyPlace, new BlockPos(0, 0, 0));
+        register(r, withEasyPlace);
+
         // printer/scaffold/: a temporary block under a fence gate over air
         Scenario sc1 = new Scenario("printer/scaffold/fence-gate-over-air");
         sc1.put(0, 1, 0, Blocks.OAK_FENCE_GATE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH));
+        // the block of an earlier test on this site must be gone before the check starts: it remembers what it saw here
+        sc1.preplaced.put(new BlockPos(0, 0, 0), Blocks.AIR.getDefaultState());
         sc1.extraCommands.add("give @s minecraft:dirt 3");
         boolean[] scaffoldSeen = {false};
         sc1.check = (c, s) -> {
@@ -445,6 +464,9 @@ final class PrinterTests {
             new NBTTagCompound[] {containerTile("minecraft:chest", item(0, "minecraft:dirt", 3), item(13, "minecraft:cobblestone", 2), item(26, "minecraft:stone", 1))},
             slots(27, 0, new ItemStack(Blocks.DIRT, 3), 13, new ItemStack(Blocks.COBBLESTONE, 2), 26, new ItemStack(Blocks.STONE)),
             "give @s minecraft:dirt 3", "give @s minecraft:cobblestone 2", "give @s minecraft:stone 1");
+        fill(r, "printer/with-easy-place/fills-a-chest", true, new BlockPos[] {new BlockPos(0, 0, 0)}, new IBlockState[] {chestNorth},
+            new NBTTagCompound[] {containerTile("minecraft:chest", item(0, "minecraft:dirt", 3))},
+            slots(27, 0, new ItemStack(Blocks.DIRT, 3)), "give @s minecraft:dirt 3");
         IBlockState trapped = Blocks.TRAPPED_CHEST.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH);
         fill(r, "double-trapped-chest-both-halves-filled", new BlockPos[] {new BlockPos(0, 0, 0), new BlockPos(1, 0, 0)}, new IBlockState[] {trapped, trapped},
             new NBTTagCompound[] {containerTile("minecraft:chest", item(0, "minecraft:dirt", 2), item(26, "minecraft:cobblestone", 1)),
@@ -469,6 +491,7 @@ final class PrinterTests {
 
         // printer/fluid/: sources from buckets, water from ice
         fluid(r, "water-source-placed-with-bucket", Blocks.WATER.getDefaultState(), "give @s minecraft:water_bucket 1");
+        fluid(r, "printer/with-easy-place/water-source", true, Blocks.WATER.getDefaultState(), "give @s minecraft:water_bucket 1");
         fluid(r, "lava-source-placed-with-bucket", Blocks.LAVA.getDefaultState(), "give @s minecraft:lava_bucket 1");
         fluid(r, "water-source-made-from-ice", Blocks.WATER.getDefaultState(), "give @s minecraft:ice 3").give = false;
 
@@ -532,10 +555,7 @@ final class PrinterTests {
             if (rightBlockMined[0]) return "the destroy assist mined a block that was right";
             if (!pressed[0]) {
                 // look at the first wrong block, then press attack
-                net.minecraft.util.math.Vec3d eye = c.mc.player.getPositionEyes(1f);
-                double dx = first.getX() + 0.5 - eye.x, dy = first.getY() + 0.5 - eye.y, dz = first.getZ() + 0.5 - eye.z;
-                c.mc.player.rotationYaw = c.mc.player.prevRotationYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-                c.mc.player.rotationPitch = c.mc.player.prevRotationPitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
+                lookAt(c, first);
                 net.minecraft.util.math.RayTraceResult hit = c.mc.objectMouseOver;
                 if (hit != null && hit.typeOfHit == net.minecraft.util.math.RayTraceResult.Type.BLOCK && hit.getBlockPos().equals(first) && s.sinceReady() > 3) {
                     pressed[0] = DestroyAssist.press(c.mc);
@@ -651,11 +671,7 @@ final class PrinterTests {
             // the player holds the attack key and looks at the dirt, so the game itself mines it (and resets the mining when the key is not held)
             net.minecraft.client.settings.KeyBinding.setKeyBindState(c.mc.gameSettings.keyBindAttack.getKeyCode(), !dirtGone);
             if (!dirtGone) {
-                net.minecraft.util.math.Vec3d eye = c.mc.player.getPositionEyes(1f);
-                double dx = dirt.getX() + 0.5 - eye.x, dy = dirt.getY() + 0.5 - eye.y, dz = dirt.getZ() + 0.5 - eye.z;
-                float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz)), pitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
-                c.mc.player.rotationYaw = c.mc.player.prevRotationYaw = yaw;
-                c.mc.player.rotationPitch = c.mc.player.prevRotationPitch = pitch;
+                lookAt(c, dirt);
                 if (c.mc.playerController.getIsHittingBlock()) {
                     minedTicks[0]++;
                     // the printer is turned on only once the player is really mining
@@ -744,6 +760,7 @@ final class PrinterTests {
                 if (!Printer.FILLED.contains(at)) return "the container is not filled yet";
                 if (c.mc.currentScreen != null) return "a screen is open";
                 PrinterConfigs.PRINTER_ENABLED.setBooleanValue(false);
+                com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_MODE.setBooleanValue(false);
                 c.mc.playerController.processRightClickBlock(c.mc.player, c.mc.world, at, EnumFacing.UP,
                     new net.minecraft.util.math.Vec3d(at.getX() + 0.5, at.getY() + 1, at.getZ() + 0.5), net.minecraft.util.EnumHand.MAIN_HAND);
                 phase[0] = 1;
@@ -773,9 +790,22 @@ final class PrinterTests {
         };
     }
 
+    /** The printer must leave the test's one position empty. */
+    private static void stayEmpty(Runner.Registry r, Scenario s) {
+        BlockPos rel = s.build.keySet().iterator().next();
+        s.check = (c, sc) -> Scenario.isAir(c, sc, rel) ? null : "the printer placed it";
+        s.stable = 60;
+        s.maxTicks = 120;
+        register(r, s);
+    }
+
     /** A fill test: the containers at the positions, built and filled by the printer; the first one is opened and read. */
     private static void fill(Runner.Registry r, String name, BlockPos[] at, IBlockState[] states, NBTTagCompound[] tiles, ItemStack[] expected, String... gives) {
-        Scenario s = new Scenario("printer/fill/" + name);
+        fill(r, "printer/fill/" + name, false, at, states, tiles, expected, gives);
+    }
+
+    private static void fill(Runner.Registry r, String id, boolean easyPlace, BlockPos[] at, IBlockState[] states, NBTTagCompound[] tiles, ItemStack[] expected, String... gives) {
+        Scenario s = new Scenario(id);
         for (int i = 0; i < at.length; i++) {
             s.put(at[i].getX(), at[i].getY(), at[i].getZ(), states[i]);
             s.tiles.put(at[i], tiles[i]);
@@ -784,7 +814,29 @@ final class PrinterTests {
         s.at.put(0, c -> PrinterConfigs.FILL_CONTAINERS.setBooleanValue(true));
         s.stable = 3;
         s.check = containerCheck(at[0], expected);
+        if (easyPlace) easyPlaceLookingAt(s, at[0]);
         register(r, s);
+    }
+
+    /** Easy Place on and the crosshair on a schematic block for the whole test; call it once the check is set. */
+    private static void easyPlaceLookingAt(Scenario s, BlockPos rel) {
+        s.at.merge(0, c -> {
+            com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_MODE.setBooleanValue(true);
+            lookAt(c, s.world(rel));
+        }, java.util.function.Consumer::andThen);
+        Scenario.Check check = s.check;
+        s.check = (c, sc) -> {
+            lookAt(c, sc.world(rel));
+            return check.problem(c, sc);
+        };
+    }
+
+    /** Turns the player to the middle of a block. */
+    private static void lookAt(Runner.Context c, BlockPos pos) {
+        net.minecraft.util.math.Vec3d eye = c.mc.player.getPositionEyes(1f);
+        double dx = pos.getX() + 0.5 - eye.x, dy = pos.getY() + 0.5 - eye.y, dz = pos.getZ() + 0.5 - eye.z;
+        c.mc.player.rotationYaw = c.mc.player.prevRotationYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        c.mc.player.rotationPitch = c.mc.player.prevRotationPitch = (float) -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)));
     }
 
     /** Expected slots: the size, then slot index / stack pairs; the other slots empty. */
@@ -797,7 +849,11 @@ final class PrinterTests {
 
     /** A water or lava source in the schematic; the world must end up with a source of that fluid there. */
     private static Scenario fluid(Runner.Registry r, String name, IBlockState state, String giveCommand) {
-        Scenario s = new Scenario("printer/fluid/" + name);
+        return fluid(r, "printer/fluid/" + name, false, state, giveCommand);
+    }
+
+    private static Scenario fluid(Runner.Registry r, String id, boolean easyPlace, IBlockState state, String giveCommand) {
+        Scenario s = new Scenario(id);
         s.put(1, 0, 1, state);
         s.extraCommands.add(giveCommand);
         s.stable = 5;
@@ -808,6 +864,7 @@ final class PrinterTests {
             if (real.getMaterial() != state.getMaterial()) return "the spot holds " + real + ", wanted " + state;
             return real.getValue(net.minecraft.block.BlockLiquid.LEVEL) == 0 ? null : "the fluid is flowing (" + real + "), not a source";
         };
+        if (easyPlace) easyPlaceLookingAt(s, new BlockPos(1, 0, 1));
         register(r, s);
         return s;
     }

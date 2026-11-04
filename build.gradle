@@ -12,7 +12,7 @@ buildscript {
 
 apply plugin: 'net.minecraftforge.gradle'
 
-version = '0.2.4'
+version = '0.2.5'
 group = 'com.useleess.litematicaupgraded'
 archivesBaseName = 'litematica_upgraded-1.12.2'
 

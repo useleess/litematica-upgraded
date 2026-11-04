@@ -165,8 +165,7 @@ final class ContainerFiller {
     boolean start(Minecraft minecraft, EntityPlayerSP player, BlockPos pos, ItemStack[] wanted) {
         if (minecraft.currentScreen != null || !carries(player, wanted)) return false;
         Vec3d hit = new Vec3d(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5);
-        if (minecraft.playerController.processRightClickBlock(player, minecraft.world, pos, EnumFacing.UP, hit, EnumHand.MAIN_HAND)
-            != EnumActionResult.SUCCESS) {
+        if (PrinterRange.click(player, pos, EnumFacing.UP, hit, EnumHand.MAIN_HAND) != EnumActionResult.SUCCESS) {
             this.done.add(pos);
             return false;
         }

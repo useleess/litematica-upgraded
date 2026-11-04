@@ -1,5 +1,6 @@
 package com.useleess.litematicaupgraded.selftest;
 
+import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.init.Blocks;
 import net.minecraft.util.EnumFacing;
@@ -88,5 +89,17 @@ final class UcTests {
         Scenario again = ServerTests.accurate("uc/live/accurate-placement-works-after-switching-on");
         again.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
         ServerTests.register(r, again);
+
+        // last: a refused click stops the mid-air tries for the rest of the world
+        Scenario relaxed = new Scenario("uc/air/relaxed-placement-fence-gate-and-pumpkin-in-mid-air");
+        relaxed.put(0, 2, 0, Blocks.OAK_FENCE_GATE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH));
+        relaxed.put(3, 2, 0, Blocks.PUMPKIN.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.WEST));
+        relaxed.extraCommands.add("carpet relaxedBlockPlacement true");
+        ServerTests.register(r, relaxed);
+        Scenario refused = new Scenario("uc/air/rule-off-falls-back-to-a-scaffold");
+        refused.put(0, 1, 0, Blocks.OAK_FENCE_GATE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH));
+        refused.extraCommands.add("carpet relaxedBlockPlacement false");
+        refused.extraCommands.add("give @s minecraft:dirt 3");
+        ServerTests.register(r, refused);
     }
 }
