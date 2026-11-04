@@ -15,6 +15,8 @@ public final class MessageCapabilities implements IMessage, IMessageHandler<Mess
     /** Server-side saving and edits are on; the largest edit upload in KiB. */
     public boolean saving, edits;
     public int uploadKiB;
+    /** Accurate placement sets every state a player could click into the block (open, a lever's switch...), not only its orientation. */
+    public boolean accurateStates;
 
     public MessageCapabilities() {}
 
@@ -43,6 +45,7 @@ public final class MessageCapabilities implements IMessage, IMessageHandler<Mess
         saving = buffer.isReadable() && buffer.readBoolean();
         edits = buffer.isReadable() && buffer.readBoolean();
         uploadKiB = buffer.readableBytes() >= 4 ? buffer.readInt() : 0;
+        accurateStates = buffer.isReadable() && buffer.readBoolean();
     }
 
     @Override public void toBytes(ByteBuf buffer) {
@@ -54,6 +57,7 @@ public final class MessageCapabilities implements IMessage, IMessageHandler<Mess
         buffer.writeBoolean(saving);
         buffer.writeBoolean(edits);
         buffer.writeInt(uploadKiB);
+        buffer.writeBoolean(accurateStates);
     }
 
     /** Runs on the network thread; the client applies it on its own thread (ServerFeatures.takePending). */
@@ -67,16 +71,16 @@ public final class MessageCapabilities implements IMessage, IMessageHandler<Mess
         MessageCapabilities o = (MessageCapabilities) other;
         return printerAllowed == o.printerAllowed && accuratePlacement == o.accuratePlacement && airPlacement == o.airPlacement
             && shulkerRestock == o.shulkerRestock && range == o.range
-            && saving == o.saving && edits == o.edits && uploadKiB == o.uploadKiB;
+            && saving == o.saving && edits == o.edits && uploadKiB == o.uploadKiB && accurateStates == o.accurateStates;
     }
 
     @Override public int hashCode() {
-        return (printerAllowed ? 1 : 0) | (accuratePlacement ? 2 : 0) | (airPlacement ? 4 : 0) | (shulkerRestock ? 8 : 0) | (saving ? 16 : 0) | (edits ? 32 : 0) | Float.floatToIntBits(range) << 6 ^ uploadKiB;
+        return (printerAllowed ? 1 : 0) | (accuratePlacement ? 2 : 0) | (airPlacement ? 4 : 0) | (shulkerRestock ? 8 : 0) | (saving ? 16 : 0) | (edits ? 32 : 0) | (accurateStates ? 64 : 0) | Float.floatToIntBits(range) << 6 ^ uploadKiB;
     }
 
     @Override public String toString() {
         return "capabilities{printer=" + printerAllowed + ", accurate=" + accuratePlacement + ", air=" + airPlacement
             + ", shulker=" + shulkerRestock + ", range=" + range
-            + ", saving=" + saving + ", edits=" + edits + ", uploadKiB=" + uploadKiB + "}";
+            + ", saving=" + saving + ", edits=" + edits + ", uploadKiB=" + uploadKiB + ", accurateStates=" + accurateStates + "}";
     }
 }

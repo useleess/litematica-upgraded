@@ -13,6 +13,8 @@ public final class ServerFeatures {
     public static volatile boolean received;
     public static volatile boolean printerAllowed = true;
     public static volatile boolean accuratePlacement;
+    /** Accurate placement also sets open / switch states (an older server part sets orientation only). */
+    public static volatile boolean accurateStates;
     public static volatile boolean airPlacement;
     public static volatile boolean shulkerRestock;
     /** Server-side saving, and server-side paste / fill / replace / delete / move. */
@@ -39,6 +41,7 @@ public final class ServerFeatures {
         received = true;
         printerAllowed = message.printerAllowed;
         accuratePlacement = message.accuratePlacement;
+        accurateStates = message.accurateStates;
         airPlacement = message.airPlacement;
         shulkerRestock = message.shulkerRestock;
         range = message.range;
@@ -54,6 +57,7 @@ public final class ServerFeatures {
         received = false;
         printerAllowed = true;
         accuratePlacement = false;
+        accurateStates = false;
         airPlacement = false;
         shulkerRestock = false;
         range = 0;

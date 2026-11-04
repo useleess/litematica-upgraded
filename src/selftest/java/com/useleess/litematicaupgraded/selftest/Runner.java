@@ -45,6 +45,8 @@ public final class Runner {
     static final String LITELOADER_OPTIFINE_PREFIX = "compat/liteloader-optifine/";
     /** The tests of the "liteloader-alone" phase (Forge + LiteLoader, none of masa's mods, no OptiFine). */
     static final String LITELOADER_ALONE_PREFIX = "compat/liteloader-alone/";
+    /** The tests of the "uc" phase (a real Useleess Carpet server, its LU rules on at the start). */
+    static final String UC_PREFIX = "uc/";
     private static final int JOIN_TICKS = 20 * 600;
     private static final int SETTLE_TICKS = 60;
 
@@ -107,6 +109,7 @@ public final class Runner {
 
     /** Whether a test belongs to this run's phase. */
     static boolean inPhase(String id, String phase) {
+        if ("uc".equals(phase) || id.startsWith(UC_PREFIX)) return "uc".equals(phase) && id.startsWith(UC_PREFIX);
         // the OptiFine phase (a plain server, OptiFine in the client) runs only its own short tests, and only there
         if ("liteloader-optifine".equals(phase) || id.startsWith(LITELOADER_OPTIFINE_PREFIX)) return "liteloader-optifine".equals(phase) && id.startsWith(LITELOADER_OPTIFINE_PREFIX);
         if ("liteloader-alone".equals(phase) || id.startsWith(LITELOADER_ALONE_PREFIX)) return "liteloader-alone".equals(phase) && id.startsWith(LITELOADER_ALONE_PREFIX);

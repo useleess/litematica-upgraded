@@ -13,6 +13,8 @@
 #               keep ticking and drawing after joining - compat/liteloader-optifine/.
 #   liteloader-alone: the plain server again, the client = Forge + LiteLoader, none of masa's mods, no OptiFine, no MixinBooter
 #               - compat/liteloader-alone/.
+#   uc: a real Useleess Carpet server (its launcher jar comes in _uc/, box-inputs.json; made by its own installer), both LU rules on
+#               at the start in the world's carpet.conf; the tests switch them live and join again - uc/.
 # Each phase: a throwaway Prism instance with Forge + MixinBooter (not in the liteloader phase) + the reobf'd mod jar + the selftest jar (never
 # released) joins the server and runs the in-world tests (-Dlitematicaupgraded.selftest.phase picks the tests). The
 # selftest prints SCOPE-TEST lines into the game log and "SCOPE-TEST done" at the end. Both logs are joined into
@@ -61,8 +63,9 @@ public static class W {
 # FILTER may list several prefixes, comma separated
 $filters = @("$filter".Split(',') | Where-Object { $_ })
 function Wants([string]$id) { return (-not $filter) -or @($filters | Where-Object { $id.StartsWith($_) -or $_.StartsWith($id) }).Count -gt 0 }
-$runPlain = (-not $filter) -or @($filters | Where-Object { -not $_.StartsWith('server/') -and -not $_.StartsWith('compat/liteloader/') -and -not $_.StartsWith('compat/liteloader-first/') -and -not $_.StartsWith('compat/liteloader-alone/') -and -not $_.StartsWith('compat/liteloader-optifine/') }).Count -gt 0 -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
+$runPlain = (-not $filter) -or @($filters | Where-Object { -not $_.StartsWith('server/') -and -not $_.StartsWith('uc/') -and -not $_.StartsWith('compat/liteloader/') -and -not $_.StartsWith('compat/liteloader-first/') -and -not $_.StartsWith('compat/liteloader-alone/') -and -not $_.StartsWith('compat/liteloader-optifine/') }).Count -gt 0 -or (Wants 'server/fallback/') -or (Wants 'server/permission/fallback-')
 $runForge = (-not $filter) -or (Wants 'server/')
+$runUc = (-not $filter) -or (Wants 'uc/')
 # Phase 3 (short): the plain server again, with OptiFine in the client (tools/check-ingame.sh puts its jar in _optifine/; it is never committed).
 $runOptifine = (-not $filter) -or (Wants 'perf/optifine/')
 # Phase 4 (short): the plain server again, the client runs Forge + LiteLoader and has NO MixinBooter (LiteLoader's own Mixin).
@@ -119,6 +122,19 @@ function Start-ForgeServer([string]$srv, [int]$port) {
   return Start-Process -FilePath $java8 -ArgumentList '-Xmx1G','-jar',$universal.Name,'nogui' -WorkingDirectory $srv -WindowStyle Hidden -PassThru
 }
 
+# The uc phase's server: Useleess Carpet's launcher makes the server jar the way a player's install does, both LU rules on from the start.
+function Start-UcServer([string]$srv, [int]$port) {
+  New-Item -ItemType Directory -Force "$srv\world" | Out-Null
+  $launcher = Get-ChildItem "$here\_uc" -Filter '*.jar' -EA 0 | Select -First 1
+  if (-not $launcher) { Write-Host "INGAME-FAIL: no Useleess Carpet launcher in _uc/"; return $null }
+  Copy-Item $launcher.FullName "$srv\launcher.jar"
+  Start-Process -FilePath $java8 -ArgumentList '-jar','launcher.jar','--install-only' -WorkingDirectory $srv -WindowStyle Hidden -Wait -RedirectStandardOutput "$srv\install.out" -RedirectStandardError "$srv\install.err"
+  if (-not (Test-Path "$srv\useleess-carpet-1.12.2-server.jar")) { Write-Host "INGAME-FAIL: the Useleess Carpet launcher made no server jar (see install.out)"; Copy-Item "$srv\install.out","$srv\install.err" $out -EA 0; return $null }
+  Write-ServerFiles $srv $port
+  "litematicaShulkerRestock true`nlitematicaAccuratePlacement true" | Set-Content "$srv\world\carpet.conf" -Encoding ascii
+  return Start-Process -FilePath $java8 -ArgumentList '-Xmx1G','-jar','useleess-carpet-1.12.2-server.jar','nogui' -WorkingDirectory $srv -WindowStyle Hidden -PassThru
+}
+
 # One phase: server, then a client that joins it and runs the tests of the phase. Returns after cleaning up everything it started.
 function Invoke-Phase([string]$phase) {
   $name = "zz-lu-ingame-$phase-" + (Get-Random -Maximum 99999)
@@ -130,7 +146,7 @@ function Invoke-Phase([string]$phase) {
   $server = $null
   try {
     $port = Find-FreePort
-    $server = if ($phase -eq 'forge') { Start-ForgeServer $srv $port } else { Start-PlainServer $srv $port }
+    $server = if ($phase -eq 'forge') { Start-ForgeServer $srv $port } elseif ($phase -eq 'uc') { Start-UcServer $srv $port } else { Start-PlainServer $srv $port }
     if (($phase -in @('optifine', 'liteloader-first', 'liteloader-optifine')) -and -not $optifineJar) { Write-Host "INGAME-FAIL: no OptiFine jar in _optifine/"; return }
     if (-not $server) { return }
     for ($i = 0; $i -lt 150 -and -not ((Test-Path "$srv\logs\latest.log") -and (Select-String "$srv\logs\latest.log" -Pattern 'Done \(' -Quiet)); $i++) { Start-Sleep 2 }
@@ -215,6 +231,7 @@ ShowConsole=false
 $script:phaseDone = @{}
 if ($runPlain) { Invoke-Phase 'plain' }
 if ($runForge) { Invoke-Phase 'forge' }
+if ($runUc) { Invoke-Phase 'uc' }
 if ($runOptifine) { Invoke-Phase 'optifine' }
 if ($runLiteloader) { Invoke-Phase 'liteloader' }
 if ($runLiteloaderFirst) { Invoke-Phase 'liteloader-first' }
@@ -223,8 +240,8 @@ if ($runLiteloaderOptifine) { Invoke-Phase 'liteloader-optifine' }
 
 # One log for the verdict: the plain phase, then the forge phase, then the lines only this script can judge.
 $extra = New-Object System.Collections.Generic.List[string]
-foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) {
-  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'optifine' -and $runOptifine) -or ($phase -eq 'liteloader' -and $runLiteloader) -or ($phase -eq 'liteloader-first' -and $runLiteloaderFirst) -or ($phase -eq 'liteloader-alone' -and $runLiteloaderAlone) -or ($phase -eq 'liteloader-optifine' -and $runLiteloaderOptifine)) {
+foreach ($phase in @('plain', 'forge', 'uc', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) {
+  if (($phase -eq 'plain' -and $runPlain) -or ($phase -eq 'forge' -and $runForge) -or ($phase -eq 'uc' -and $runUc) -or ($phase -eq 'optifine' -and $runOptifine) -or ($phase -eq 'liteloader' -and $runLiteloader) -or ($phase -eq 'liteloader-first' -and $runLiteloaderFirst) -or ($phase -eq 'liteloader-alone' -and $runLiteloaderAlone) -or ($phase -eq 'liteloader-optifine' -and $runLiteloaderOptifine)) {
     if (-not $script:phaseDone[$phase]) { $extra.Add("SCOPE-TEST fail harness/phase-$phase :: the $phase phase did not finish") }
   }
 }
@@ -254,7 +271,7 @@ if ($runForge) {
   }
 }
 $parts = @()
-foreach ($phase in @('plain', 'forge', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
+foreach ($phase in @('plain', 'forge', 'uc', 'optifine', 'liteloader', 'liteloader-first', 'liteloader-alone', 'liteloader-optifine')) { if (Test-Path "$out\latest-$phase.log") { $parts += (Get-Content "$out\latest-$phase.log" -Raw -Encoding UTF8) } }
 ($parts + ($extra -join "`n")) -join "`n" | Set-Content "$out\latest.log" -Encoding UTF8
 if ($extra.Count) { $extra }
 'INGAME-END'

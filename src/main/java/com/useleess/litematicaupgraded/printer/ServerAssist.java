@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockDoor;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.item.Item;
@@ -13,7 +14,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.CPacketHeldItemChange;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
+import com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler;
 import com.useleess.litematicaupgraded.server.AccuratePlacement;
 import com.useleess.litematicaupgraded.server.AirPlacement;
 import com.useleess.litematicaupgraded.server.ServerFeatures;
@@ -47,6 +50,11 @@ public final class ServerAssist {
     public static void announce(BlockPos pos, IBlockState state) {
         Net.CHANNEL.sendToServer(new MessagePlacementIntent(pos.getX(), pos.getY(), pos.getZ(), StateStrings.toString(state)));
         intentsSent++;
+        // the same click makes a door's upper half, which holds the hinge
+        if (!(state.getBlock() instanceof BlockDoor) || state.getValue(BlockDoor.HALF) != BlockDoor.EnumDoorHalf.LOWER) return;
+        World schematic = SchematicWorldHandler.getSchematicWorld();
+        IBlockState upper = schematic == null ? null : schematic.getBlockState(pos.up());
+        if (upper != null && upper.getBlock() == state.getBlock()) announce(pos.up(), upper);
     }
 
     // ---- air placement ----

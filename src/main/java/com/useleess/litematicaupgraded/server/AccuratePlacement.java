@@ -15,7 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.base.Optional;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockChest;
+import net.minecraft.block.BlockLever;
 import net.minecraft.block.BlockQuartz;
+import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.player.EntityPlayer;
@@ -33,16 +35,21 @@ import com.useleess.litematicaupgraded.printer.StateMatch;
 import com.useleess.litematicaupgraded.server.net.MessagePlacementIntent;
 
 /**
- * Applies the state a client asked for to the block its placement creates. As with Litematica's whitelisted properties,
- * only orientation-like properties (facing, slab half, axis, rail shape, repeater delay, comparator mode, door hinge,
- * open, sign rotation) may change; powered states, ages and contents stay as vanilla placed them, and the block must
- * drop the same items as before.
+ * Applies the state a client asked for to the block its placement creates: every property the player could give it by
+ * placing and clicking (facing, half, axis, shape, delay, mode, hinge, open, rotation, a lever's switch...). What the
+ * world decides stays as vanilla placed it: power (redstone parts start unpowered and the world powers them), growth,
+ * neighbours, contents, the block's kind (variant, colour), and the open state of iron doors and trapdoors (only
+ * redstone opens them). The block must also drop the same items as before.
  */
 public final class AccuratePlacement {
     public static final AccuratePlacement INSTANCE = new AccuratePlacement();
     static final long LIFETIME_NANOS = 2_000_000_000L;
     static final int MAX_PENDING = 64;
-    static final Set<String> WHITELIST = new HashSet<>(Arrays.asList("facing", "half", "axis", "shape", "delay", "mode", "hinge", "open", "rotation"));
+    /** Properties kept as vanilla placed them. */
+    static final Set<String> WORLD_MADE = new HashSet<>(Arrays.asList(
+        "powered", "power", "triggered", "extended", "enabled", "locked", "attached", "disarmed", "occupied", "part", "short",
+        "check_decay", "decayable", "snowy", "age", "conditional", "has_bottle_0", "has_bottle_1", "has_bottle_2", "contents",
+        "eye", "explode", "nodrop", "has_record", "variant", "type", "color", "wet", "damage", "seamless", "legacy_data"));
 
     private static final class Intent {
         final String state;
@@ -60,8 +67,15 @@ public final class AccuratePlacement {
     public static boolean supports(Block block) {
         if (block == null) return false;
         if (block instanceof BlockQuartz) return true;
-        for (IProperty<?> property : block.getBlockState().getProperties()) if (WHITELIST.contains(property.getName())) return true;
+        for (IProperty<?> property : block.getBlockState().getProperties()) if (settable(block, property.getName())) return true;
         return false;
+    }
+
+    /** Whether a client may choose this property of the block: a lever's switch is the player's, an iron door opens by redstone only. */
+    static boolean settable(Block block, String property) {
+        if (block instanceof BlockLever && property.equals("powered")) return true;
+        if (property.equals("open") && block.getDefaultState().getMaterial() == Material.IRON) return false;
+        return !WORLD_MADE.contains(property);
     }
 
     static long key(int x, int y, int z) {
@@ -173,7 +187,7 @@ public final class AccuratePlacement {
     }
 
     /**
-     * The current state with the desired values of the whitelisted properties (matched by name), or null when nothing
+     * The current state with the desired values of the settable properties (matched by name), or null when nothing
      * changes or the change is not allowed (it would drop other items).
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -182,7 +196,7 @@ public final class AccuratePlacement {
         IBlockState next = current;
         for (IProperty property : current.getPropertyKeys()) {
             boolean quartzAxis = block instanceof BlockQuartz && property == BlockQuartz.VARIANT;
-            if (!WHITELIST.contains(property.getName()) && !quartzAxis) continue;
+            if (!settable(block, property.getName()) && !quartzAxis) continue;
             Comparable value = null;
             for (IProperty candidate : desired.getPropertyKeys()) {
                 if (!candidate.getName().equals(property.getName())) continue;

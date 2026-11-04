@@ -210,6 +210,7 @@ final class Scenario {
         PrinterConfigs.USE_TOOLS.setBooleanValue(true);
         PrinterConfigs.SCAFFOLD.setBooleanValue(true);
         PrinterConfigs.FILL_CONTAINERS.setBooleanValue(false);
+        PrinterConfigs.CONTAINER_GRAB.setBooleanValue(false);
         PrinterConfigs.FLUIDS.setBooleanValue(true);
         PrinterConfigs.ICE_WATER.setBooleanValue(true);
         PrinterConfigs.SNOW_LAYERS.setBooleanValue(true);

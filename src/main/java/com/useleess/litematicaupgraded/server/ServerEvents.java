@@ -20,9 +20,11 @@ public final class ServerEvents {
 
     /** What the server supports now, from the options. */
     public static MessageCapabilities capabilities() {
-        return new MessageCapabilities(ServerConfig.printerAllowed, ServerConfig.accuratePlacement, ServerConfig.airPlacement,
+        MessageCapabilities message = new MessageCapabilities(ServerConfig.printerAllowed, ServerConfig.accuratePlacement, ServerConfig.airPlacement,
             ServerConfig.shulkerRestock, (float) ServerConfig.maxRange,
             ServerConfig.saving, ServerConfig.edits, ServerConfig.uploadKiB);
+        message.accurateStates = ServerConfig.accuratePlacement;
+        return message;
     }
 
     @SubscribeEvent

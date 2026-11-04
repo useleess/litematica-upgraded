@@ -7,8 +7,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.useleess.litematicaupgraded.litematica.util.EasyPlaceUtils;
 import com.useleess.litematicaupgraded.printer.FakeRotation;
+import com.useleess.litematicaupgraded.printer.TopLayerClick;
 
-/** Litematica's Easy Place click gets the rotation the schematic block needs reported to the server (Easy Place without a server mod). */
+/**
+ * Litematica's Easy Place click gets the rotation the schematic block needs reported to the server (Easy Place without a
+ * server mod), and a top-face click in the world's top layer, which the server refuses, is made another way.
+ */
 @Mixin(net.minecraft.client.multiplayer.PlayerControllerMP.class)
 public abstract class MixinPlayerControllerMPFakeRotation
 {
@@ -26,6 +30,11 @@ public abstract class MixinPlayerControllerMPFakeRotation
         if (EasyPlaceUtils.isHandling())
         {
             net.minecraft.util.EnumActionResult result = FakeRotation.click(player, world, pos, direction, hand);
+
+            if (result == null)
+            {
+                result = TopLayerClick.click(player, world, pos, direction, vec, hand);
+            }
 
             if (result != null)
             {

@@ -10,12 +10,21 @@ import static org.junit.Assert.fail;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import net.minecraft.block.BlockColored;
+import net.minecraft.block.BlockDirt;
+import net.minecraft.block.BlockEndPortalFrame;
+import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockHorizontal;
+import net.minecraft.block.BlockLever;
+import net.minecraft.block.BlockPistonBase;
+import net.minecraft.block.BlockRailPowered;
+import net.minecraft.block.BlockTrapDoor;
 import net.minecraft.block.BlockRedstoneRepeater;
 import net.minecraft.block.BlockStairs;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Bootstrap;
+import net.minecraft.item.EnumDyeColor;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.NonNullList;
@@ -52,6 +61,20 @@ public class ServerPartTest {
         assertEquals(sent, read);
         assertFalse(read.printerAllowed);
         assertEquals(12.5f, read.range, 0);
+        sent.accurateStates = true;
+        read.fromBytes(encode(sent));
+        assertTrue(read.accurateStates);
+    }
+
+    @Test
+    public void anOlderServerPartsCapabilitiesHaveNoFullStates() {
+        // what 0.2.x and Useleess Carpet send: everything up to the upload size
+        ByteBuf old = Unpooled.buffer().writeBoolean(true).writeBoolean(true).writeBoolean(false).writeBoolean(true).writeFloat(0)
+            .writeBoolean(false).writeBoolean(false).writeInt(0);
+        MessageCapabilities read = new MessageCapabilities();
+        read.fromBytes(old);
+        assertTrue(read.accuratePlacement);
+        assertFalse(read.accurateStates);
     }
 
     @Test
@@ -179,11 +202,47 @@ public class ServerPartTest {
     }
 
     @Test
+    public void accuratePlacementSetsWhatAPlayerCouldClickButNotPower() {
+        // a lever's switch is the player's
+        IBlockState lever = Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST);
+        assertTrue(AccuratePlacement.merge(lever, lever.withProperty(BlockLever.POWERED, true)).getValue(BlockLever.POWERED));
+        // a wooden trapdoor opens, top half, any facing
+        IBlockState trapdoor = Blocks.TRAPDOOR.getDefaultState();
+        IBlockState open = trapdoor.withProperty(BlockTrapDoor.OPEN, true).withProperty(BlockTrapDoor.HALF, BlockTrapDoor.DoorHalf.TOP)
+            .withProperty(BlockTrapDoor.FACING, EnumFacing.EAST);
+        assertEquals(open, AccuratePlacement.merge(trapdoor, open));
+        // an iron trapdoor stays closed: only redstone opens it
+        IBlockState iron = Blocks.IRON_TRAPDOOR.getDefaultState();
+        assertNull(AccuratePlacement.merge(iron, iron.withProperty(BlockTrapDoor.OPEN, true)));
+        // redstone parts start unpowered, the world powers them
+        IBlockState rail = Blocks.GOLDEN_RAIL.getDefaultState();
+        assertNull(AccuratePlacement.merge(rail, rail.withProperty(BlockRailPowered.POWERED, true)));
+        IBlockState gate = Blocks.OAK_FENCE_GATE.getDefaultState();
+        IBlockState gateMerged = AccuratePlacement.merge(gate, gate.withProperty(BlockFenceGate.OPEN, true).withProperty(BlockFenceGate.POWERED, true));
+        assertTrue(gateMerged.getValue(BlockFenceGate.OPEN));
+        assertFalse(gateMerged.getValue(BlockFenceGate.POWERED));
+        IBlockState piston = Blocks.PISTON.getDefaultState();
+        assertNull(AccuratePlacement.merge(piston, piston.withProperty(BlockPistonBase.EXTENDED, true)));
+        // the block's kind is never changed: dirt does not become podzol, white wool not red
+        IBlockState dirt = Blocks.DIRT.getDefaultState();
+        assertNull(AccuratePlacement.merge(dirt, dirt.withProperty(BlockDirt.VARIANT, BlockDirt.DirtType.PODZOL)));
+        IBlockState wool = Blocks.WOOL.getDefaultState();
+        assertNull(AccuratePlacement.merge(wool, wool.withProperty(BlockColored.COLOR, EnumDyeColor.RED)));
+        // nor its growth, nor an end portal frame's eye
+        IBlockState frame = Blocks.END_PORTAL_FRAME.getDefaultState();
+        assertNull(AccuratePlacement.merge(frame, frame.withProperty(BlockEndPortalFrame.EYE, true)));
+    }
+
+    @Test
     public void accuratePlacementKnowsWhichBlocksItCanSet() {
         assertTrue(AccuratePlacement.supports(Blocks.STONE_STAIRS));
         assertTrue(AccuratePlacement.supports(Blocks.PISTON));
         assertTrue(AccuratePlacement.supports(Blocks.QUARTZ_BLOCK));
         assertTrue(AccuratePlacement.supports(Blocks.UNPOWERED_COMPARATOR));
+        assertTrue(AccuratePlacement.supports(Blocks.LEVER));
+        assertTrue(AccuratePlacement.supports(Blocks.TRAPDOOR));
+        assertFalse(AccuratePlacement.supports(Blocks.WOOL));
+        assertFalse(AccuratePlacement.supports(Blocks.REDSTONE_LAMP));
         assertFalse(AccuratePlacement.supports(Blocks.STONE));
         assertFalse(AccuratePlacement.supports(Blocks.DIRT));
         assertFalse(AccuratePlacement.supports(null));

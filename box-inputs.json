@@ -3,5 +3,11 @@
   "_comment": "OptiFine for the optifine phase (may not be redistributed, git ignores _optifine/): every box / --here run gets it, also runs that do not go through the tester's copy_in (e.g. suite_check --repeat)",
   "from": "redstone-scope/reference/modtest-downloads/OptiFine_1.12.2_HD_U_G5.jar",
   "to": "_optifine/OptiFine_1.12.2_HD_U_G5.jar"
+ },
+ {
+  "_comment": "Useleess Carpet's launcher for the uc phase (a real LU client on a real UC server): a jar older than UC's code stops the run (rebuild it there first: useleess-carpet/mod, gradlew jar)",
+  "from": "useleess-carpet/mod/build/libs/useleess-carpet-1.12.2-*.jar",
+  "to": "_uc/useleess-carpet.jar",
+  "fresh": "useleess-carpet/mod"
  }
 ]

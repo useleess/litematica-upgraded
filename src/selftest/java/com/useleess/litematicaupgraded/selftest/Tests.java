@@ -368,8 +368,10 @@ final class Tests {
         // printer/, easyplace/, title/ (they set the player to survival, so they run last)
         PrinterTests.register(r);
         MaterialTests.register(r);
+        GrabTests.register(r);
         RemoteTests.register(r);
         ServerTests.register(r);
+        UcTests.register(r);
         ConvertTests.register(r);
         RemoteTests.registerLast(r);
         r.waitFor("lang/screen-buttons-show-text", 200, c -> BaseScreen.openScreen(new MainMenuScreen()), c -> {

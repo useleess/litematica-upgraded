@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockDispenser;
 import net.minecraft.block.BlockEnderChest;
@@ -75,16 +76,7 @@ public final class PlacementSolver {
         List<EnumFacing> sides = solidSides(world, pos);
         if (sides.isEmpty()) return null;
         Block placedBlock = blockOf(stack.getItem());
-        if (placedBlock == null) {
-            // doors, beds, signs...: their state comes from the item's own rules; click the block below (or the first solid side)
-            EnumFacing direction = sides.get(0);
-            if (target.getBlock() instanceof BlockWallSign) {
-                // a wall sign hangs on the block it is clicked on, facing away from it
-                direction = target.getValue(BlockWallSign.FACING).getOpposite();
-                if (!sides.contains(direction)) return null;
-            }
-            return new Solution(pos.offset(direction), direction.getOpposite(), center(pos.offset(direction), direction.getOpposite(), 0.5f), null, null);
-        }
+        if (placedBlock == null) return itemClick(target, pos, sides);
         PrinterLook[] rotations = PrinterLook.candidates(player.rotationYaw);
         PrinterLook[] looks = new PrinterLook[fakeRotation ? rotations.length + 1 : 1];
         if (fakeRotation) System.arraycopy(rotations, 0, looks, 1, rotations.length);
@@ -108,6 +100,17 @@ public final class PlacementSolver {
         }
     }
 
+    /** Doors, beds, signs...: their state comes from the item's own rules; click the block below (or the first solid side). */
+    private static Solution itemClick(IBlockState target, BlockPos pos, List<EnumFacing> sides) {
+        EnumFacing direction = sides.get(0);
+        if (target.getBlock() instanceof BlockWallSign) {
+            // a wall sign hangs on the block it is clicked on, facing away from it
+            direction = target.getValue(BlockWallSign.FACING).getOpposite();
+            if (!sides.contains(direction)) return null;
+        }
+        return new Solution(pos.offset(direction), direction.getOpposite(), center(pos.offset(direction), direction.getOpposite(), 0.5f), null, null);
+    }
+
     /**
      * With accurate placement the server sets facing, half, axis, delay and mode, so any click that makes the target's
      * block will do: the first solid neighbour, at the player's own rotation and place. Null when the item is no plain
@@ -116,7 +119,11 @@ public final class PlacementSolver {
     public static Solution solveAccurate(World world, EntityPlayer player, ItemStack stack, IBlockState target, BlockPos pos) {
         if (stack.isEmpty()) return null;
         Block block = blockOf(stack.getItem());
-        if (block == null) return null;
+        if (block == null) {
+            // not a bed: the player's facing decides where its other half goes, the server could only turn one half
+            List<EnumFacing> sides = solidSides(world, pos);
+            return sides.isEmpty() || target.getBlock() instanceof BlockBed ? null : itemClick(target, pos, sides);
+        }
         for (EnumFacing direction : solidSides(world, pos)) {
             BlockPos clicked = pos.offset(direction);
             EnumFacing side = direction.getOpposite();

@@ -10,7 +10,9 @@ import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockDirectional;
 import net.minecraft.block.BlockHorizontal;
+import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockLever;
+import net.minecraft.block.BlockTrapDoor;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.BlockOldLog;
 import net.minecraft.block.BlockRedstoneComparator;
@@ -185,6 +187,8 @@ final class PrinterTests {
         rotation(r, "comparator-subtract-mode", Blocks.UNPOWERED_COMPARATOR.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.SOUTH)
                 .withProperty(BlockRedstoneComparator.MODE, BlockRedstoneComparator.Mode.SUBTRACT), 0, 0, 0);
         rotation(r, "lever-on-wall", Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST), 1, 0, 0, 0, 0, 0, STONE);
+        rotation(r, "fence-gate-opened", Blocks.OAK_FENCE_GATE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.SOUTH)
+                .withProperty(BlockFenceGate.OPEN, true), 0, 0, 0);
         rotation(r, "lever-switched-on", Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST)
                 .withProperty(BlockLever.POWERED, true), 1, 0, 0, 0, 0, 0, STONE);
         rotation(r, "button-on-wall", facing(Blocks.STONE_BUTTON, EnumFacing.EAST), 1, 0, 0, 0, 0, 0, STONE);
@@ -297,6 +301,31 @@ final class PrinterTests {
                 .withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.BOTTOM));
         easyPlace(r, "observer-facing", facing(Blocks.OBSERVER, EnumFacing.WEST));
         easyPlace(r, "chest-facing", Blocks.CHEST.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.EAST));
+        // easyplace/build-limit/: a block in the top layer of the world (y 255), from a platform just below it
+        buildLimit(r, "fake-rotation", STONE, true, false, true);
+        buildLimit(r, "plain", STONE, false, false, true);
+        buildLimit(r, "plain-click-adjacent", STONE, false, true, true);
+        // slabs: Easy Place clicks the spot's own top face for a bottom half, which the server refuses up there
+        IBlockState bottomSlab = Blocks.STONE_SLAB.getDefaultState().withProperty(BlockSlab.HALF, BlockSlab.EnumBlockHalf.BOTTOM)
+            .withProperty(BlockStoneSlab.VARIANT, BlockStoneSlab.EnumType.STONE);
+        buildLimit(r, "bottom-slab", bottomSlab, true, false, true);
+        buildLimit(r, "bottom-slab-over-nothing", bottomSlab, true, false, false);
+        buildLimit(r, "bottom-slab-click-adjacent", bottomSlab, false, true, true);
+        buildLimit(r, "top-slab", bottomSlab.withProperty(BlockSlab.HALF, BlockSlab.EnumBlockHalf.TOP), true, false, true);
+        buildLimit(r, "double-slab", Blocks.DOUBLE_STONE_SLAB.getDefaultState().withProperty(BlockStoneSlab.VARIANT, BlockStoneSlab.EnumType.STONE), true, false, true);
+        // easyplace/state/: what only a click on the placed block sets (open, switched on), in the same Easy Place click
+        IBlockState trapdoorOpen = Blocks.TRAPDOOR.getDefaultState().withProperty(BlockTrapDoor.FACING, EnumFacing.WEST)
+                .withProperty(BlockTrapDoor.HALF, BlockTrapDoor.DoorHalf.TOP).withProperty(BlockTrapDoor.OPEN, true);
+        easyPlace(r, "state/trapdoor-open-top-half", trapdoorOpen, java.util.Collections.singletonMap(new BlockPos(1, 0, 0), STONE));
+        easyPlace(r, "state/fence-gate-open", Blocks.OAK_FENCE_GATE.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.NORTH)
+                .withProperty(BlockFenceGate.OPEN, true));
+        easyPlace(r, "state/lever-on", Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST)
+                .withProperty(BlockLever.POWERED, true), java.util.Collections.singletonMap(new BlockPos(-1, 0, 0), STONE));
+        // a trapdoor built closed: aiming Easy Place at it opens it
+        java.util.Map<BlockPos, IBlockState> closed = new java.util.LinkedHashMap<>();
+        closed.put(new BlockPos(1, 0, 0), STONE);
+        closed.put(new BlockPos(0, 0, 0), trapdoorOpen.withProperty(BlockTrapDoor.OPEN, false));
+        easyPlace(r, "state/opens-a-built-closed-trapdoor", trapdoorOpen, closed);
 
         // printer/break/: real survival mining of what the placement wants gone
         Scenario b1 = new Scenario("printer/break/wrong-block-mined-and-replaced");
@@ -646,9 +675,15 @@ final class PrinterTests {
     }
 
     /** Easy Place places the target block (and what it needs next to it) the way the schematic has it. */
-    private static void easyPlace(Runner.Registry r, String name, IBlockState target) {
+    private static Scenario easyPlace(Runner.Registry r, String name, IBlockState target) {
+        return easyPlace(r, name, target, java.util.Collections.emptyMap());
+    }
+
+    /** As above, with blocks already in the world (relative position -> state) before Easy Place clicks. */
+    private static Scenario easyPlace(Runner.Registry r, String name, IBlockState target, java.util.Map<BlockPos, IBlockState> preplaced) {
         Scenario s = new Scenario("easyplace/" + name);
         s.autoEnable = false;
+        s.preplaced.putAll(preplaced);
         s.put(0, 0, 0, target);
         s.at.put(0, c -> PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(true));
         s.check = (c, sc) -> {
@@ -666,6 +701,7 @@ final class PrinterTests {
             return problem;
         };
         register(r, s);
+        return s;
     }
 
 
@@ -788,6 +824,33 @@ final class PrinterTests {
         };
         s.stable = 10;
         return s;
+    }
+
+    /**
+     * Easy Place puts the target at y 255 (the top layer), on a stone at y 254 or over nothing; the player stands on a
+     * platform up there, next to it (the platform's edge is the target's side neighbour).
+     */
+    private static void buildLimit(Runner.Registry r, String name, IBlockState target, boolean fakeRotation, boolean adjacent, boolean support) {
+        Scenario s = new Scenario("easyplace/build-limit/" + name);
+        s.autoEnable = false;
+        // the site's ground is at y 100, so relative y 154 is world y 255
+        for (int x = 0; x <= 2; x++) s.preplaced.put(new BlockPos(x, 153, 1), STONE);
+        s.preplaced.put(new BlockPos(0, 153, 0), support ? STONE : Blocks.AIR.getDefaultState());
+        s.preplaced.put(new BlockPos(0, 154, 0), Blocks.AIR.getDefaultState());
+        s.put(0, 154, 0, target);
+        s.at.put(0, c -> {
+            PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(fakeRotation);
+            com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_CLICK_ADJACENT.setBooleanValue(adjacent);
+            BlockPos stand = s.world(new BlockPos(1, 154, 1));
+            s.command(c.mc, "tp @s " + (stand.getX() + 0.5) + " " + stand.getY() + " " + (stand.getZ() + 0.5) + " 135 45");
+        });
+        s.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) clickEasyPlace(c, sc, 0, 154, 0);
+            return problem;
+        };
+        s.stable = 10;
+        register(r, s);
     }
 
     static void clickEasyPlace(Runner.Context c, Scenario s, int x, int y, int z) {

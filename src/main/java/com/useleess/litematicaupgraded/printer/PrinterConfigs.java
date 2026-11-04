@@ -40,6 +40,8 @@ public final class PrinterConfigs {
     public static final BooleanConfig USE_TOOLS = new BooleanConfig("printerUseTools", true);
     public static final BooleanConfig SCAFFOLD = new BooleanConfig("printerScaffold", true);
     public static final BooleanConfig FILL_CONTAINERS = new BooleanConfig("printerFillContainers", false);
+    public static final HotkeyedBooleanConfig CONTAINER_GRAB = new HotkeyedBooleanConfig("containerGrab", false, "");
+    public static final IntegerConfig CONTAINER_GRAB_CLICK_TICKS = new IntegerConfig("containerGrabClickTicks", 1, 1, 40);
     public static final BooleanConfig FLUIDS = new BooleanConfig("printerFluids", true);
     public static final BooleanConfig ICE_WATER = new BooleanConfig("printerIceWater", true);
     public static final BooleanConfig SNOW_LAYERS = new BooleanConfig("printerSnowLayers", true);
@@ -71,6 +73,8 @@ public final class PrinterConfigs {
             USE_TOOLS,
             SCAFFOLD,
             FILL_CONTAINERS,
+            CONTAINER_GRAB,
+            CONTAINER_GRAB_CLICK_TICKS,
             FLUIDS,
             ICE_WATER,
             SNOW_LAYERS,
@@ -84,7 +88,7 @@ public final class PrinterConfigs {
     /** Everything in the tab: the printer's settings, then the speed settings. */
     public static final ImmutableList<ConfigOption<?>> OPTIONS = ImmutableList.<ConfigOption<?>>builder().addAll(PRINTER_OPTIONS).addAll(PerfConfigs.OPTIONS).addAll(PreviewConfigs.OPTIONS).build();
 
-    public static final ImmutableList<Hotkey> HOTKEYS = ImmutableList.of(PRINTER_ENABLED);
+    public static final ImmutableList<Hotkey> HOTKEYS = ImmutableList.of(PRINTER_ENABLED, CONTAINER_GRAB);
 
     public static final List<ConfigOptionCategory> CATEGORIES = ImmutableList.of(
             BaseConfigOptionCategory.normal(MOD_INFO, "Printer", PRINTER_OPTIONS),

@@ -1,5 +1,14 @@
 # Litematica Upgraded changelog
 
+## 0.2.4 (beta) - 2026-11-04
+
+- The LGPL-3.0 licence text now ships inside the jar (`META-INF/LICENSE-LGPL-3.0.txt`), next to the MIT one.
+- Easy Place now takes a block you don't carry out of a shulker box in your inventory, like the printer (#7). Works in single player, on servers with Litematica Upgraded, and on Carpet servers with Useleess Carpet's rule on. The first click fetches the block, the next click (or holding the button) places it.
+- Easy Place and the printer place blocks in the schematic's exact state (#9). In single player and on servers with Litematica Upgraded, the server sets the whole state in one click: facing, top/bottom half, axis, repeater delay, comparator mode, open trapdoors / fence gates / doors and switched-on levers, even where no click could (a top-half stair or trapdoor with only the ground to click on). Redstone parts are placed unpowered and the world powers them; iron doors and trapdoors stay closed (only redstone opens them); a block's kind (colour, variant) and growth are never changed. On other servers Easy Place now does what the printer does: it clicks the placed block until trapdoors, fence gates and levers are open / on as in the schematic and repeaters / comparators are set, and aiming Easy Place at an already built block in the wrong state fixes it.
+- Easy Place places slabs in the top layer of the world (y 255) again: bottom slabs and the second half of double slabs failed there with "cannot be placed with Easy Place", because the server refuses a click on a top face that high (#10).
+- Accurate placement now also covers doors (open and hinge), signs and banners, which used to ignore the schematic's state on servers with the LU server part or Useleess Carpet.
+- New: Grab From Containers (#11), a switch you can put on a key, like Easy Place. While it's on, opening a chest, shulker box, hopper, dropper or dispenser takes what the selected layers of your schematic still need, the most needed first, a whole stack at a time. What you carry already counts. It only uses normal clicks, so it works on any server; Grab Click Delay slows it down for picky servers.
+
 ## 0.2.3 (beta) - 2026-11-01
 
 - Clearer Easy Place setting names: the on/off switch is now just **Easy Place** (was "Easy Place Mode"), and the extra key is **Easy Place Hold Key (optional)** (was "Easy Place Activation"), with tooltips that say what each one does. Your saved settings are kept.

@@ -4,10 +4,18 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.minecraft.block.BlockHorizontal;
+import net.minecraft.block.BlockTrapDoor;
+import net.minecraft.block.BlockDoor;
+import net.minecraft.block.BlockRail;
+import net.minecraft.block.BlockRailBase;
+import net.minecraft.block.BlockRailPowered;
+import net.minecraft.block.BlockLever;
+import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockRedstoneComparator;
 import net.minecraft.block.BlockRedstoneRepeater;
 import net.minecraft.block.BlockSlab;
 import net.minecraft.block.BlockStairs;
+import net.minecraft.block.BlockStandingSign;
 import net.minecraft.block.BlockStoneSlab;
 import net.minecraft.block.BlockLog;
 import net.minecraft.block.BlockOldLog;
@@ -67,11 +75,11 @@ final class ServerTests {
         return false;
     }
 
-    private static void send(Runner.Context c, String command) {
+    static void send(Runner.Context c, String command) {
         c.mc.player.sendChatMessage("/" + command);
     }
 
-    private static void register(Runner.Registry r, Scenario s) {
+    static void register(Runner.Registry r, Scenario s) {
         r.waitFor(s.id, s.maxTicks + 300, s::start, s::poll);
     }
 
@@ -105,8 +113,8 @@ final class ServerTests {
     }
 
     /** A placement test: the server part does the work, so the client's own fake rotation and position are off. */
-    private static Scenario accurate(String name) {
-        Scenario s = new Scenario("server/accurate/" + name);
+    static Scenario accurate(String id) {
+        Scenario s = new Scenario(id);
         s.autoEnable = false;
         int[] intents = {0};
         s.at.put(0, c -> {
@@ -207,22 +215,7 @@ final class ServerTests {
         };
         register(r, ep);
 
-        // server/accurate/: facing, half, axis, delay and mode in one click, set by the server
-        Scenario a1 = accurate("stairs-facing-and-half");
-        a1.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
-        register(r, a1);
-        Scenario a2 = accurate("piston-facing-down-on-the-ground");
-        a2.put(0, 0, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.DOWN));
-        register(r, a2);
-        Scenario a3 = accurate("repeater-delay-and-comparator-mode-without-extra-clicks");
-        a3.put(0, 0, 0, Blocks.UNPOWERED_REPEATER.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.WEST).withProperty(BlockRedstoneRepeater.DELAY, 4));
-        a3.put(2, 0, 0, Blocks.UNPOWERED_COMPARATOR.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.SOUTH)
-            .withProperty(BlockRedstoneComparator.MODE, BlockRedstoneComparator.Mode.SUBTRACT));
-        register(r, a3);
-        Scenario a4 = accurate("slab-top-half-and-log-axis");
-        a4.put(0, 0, 0, Blocks.STONE_SLAB.getDefaultState().withProperty(BlockSlab.HALF, BlockSlab.EnumBlockHalf.TOP).withProperty(BlockStoneSlab.VARIANT, BlockStoneSlab.EnumType.STONE));
-        a4.put(2, 0, 0, Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, net.minecraft.block.BlockPlanks.EnumType.OAK).withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.X));
-        register(r, a4);
+        registerAccurate(r, "server/accurate/");
 
         // server/air/: a fence gate over nothing, placed by the server, no scaffold block
         Scenario air = new Scenario("server/air/fence-gate-over-air-placed-directly");
@@ -294,50 +287,7 @@ final class ServerTests {
         };
         register(r, dig);
 
-        // server/shulker/: items out of shulker boxes in the inventory
-        Scenario s1 = new Scenario("server/shulker/printer-takes-missing-blocks-from-a-shulker-box");
-        s1.give = false;
-        s1.put(0, 0, 0, STONE).put(1, 0, 0, STONE).put(2, 0, 0, STONE).put(3, 0, 0, STONE);
-        s1.extraCommands.add(box("stone", 8));
-        s1.extraReady = mc -> hasBoxes(mc, 1);
-        int[] shulker = {0};
-        s1.at.put(0, c -> shulker[0] = ServerAssist.shulkerSent);
-        s1.check = (c, sc) -> {
-            String problem = Scenario.allBuilt(c, sc);
-            if (problem != null) return problem;
-            int left = carried(c.mc, Item.getItemFromBlock(Blocks.STONE)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
-            if (left != 4) return "stone left over: " + left + ", wanted 4 (8 in the box, 4 placed)";
-            return ServerAssist.shulkerSent > shulker[0] ? null : "no restock request was sent";
-        };
-        register(r, s1);
-        Scenario s2 = new Scenario("server/shulker/several-boxes-and-item-kinds");
-        s2.give = false;
-        s2.put(0, 0, 0, STONE).put(1, 0, 0, STONE).put(2, 0, 0, Blocks.DIRT.getDefaultState()).put(3, 0, 0, Blocks.DIRT.getDefaultState());
-        s2.extraCommands.add(box("stone", 5));
-        s2.extraCommands.add(box("dirt", 5));
-        s2.extraReady = mc -> hasBoxes(mc, 2);
-        s2.check = (c, sc) -> {
-            String problem = Scenario.allBuilt(c, sc);
-            if (problem != null) return problem;
-            int stone = carried(c.mc, Item.getItemFromBlock(Blocks.STONE)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
-            int dirt = carried(c.mc, Item.getItemFromBlock(Blocks.DIRT)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.DIRT));
-            return stone == 3 && dirt == 3 ? null : "left over: stone " + stone + " (wanted 3), dirt " + dirt + " (wanted 3)";
-        };
-        register(r, s2);
-        Scenario s3 = new Scenario("server/shulker/box-left-alone-when-nothing-is-missing");
-        s3.put(0, 0, 0, STONE).put(1, 0, 0, STONE);
-        s3.extraCommands.add(box("dirt", 8));
-        s3.extraReady = mc -> hasBoxes(mc, 1);
-        int[] shulkerBefore = {0};
-        s3.at.put(0, c -> shulkerBefore[0] = ServerAssist.shulkerSent);
-        s3.stable = 30;
-        s3.check = (c, sc) -> {
-            String problem = Scenario.allBuilt(c, sc);
-            if (problem != null) return problem;
-            if (ServerAssist.shulkerSent != shulkerBefore[0]) return "a restock was asked for although nothing was missing";
-            return inBoxes(c.mc, Item.getItemFromBlock(Blocks.DIRT)) == 8 && carried(c.mc, Item.getItemFromBlock(Blocks.DIRT)) == 0 ? null : "the box was emptied";
-        };
-        register(r, s3);
+        registerShulker(r, "server/shulker/");
 
         // server/fallback/ (plain phase, a server without the mod)
         r.add("server/fallback/every-server-feature-reports-off", c -> {
@@ -356,22 +306,7 @@ final class ServerTests {
                 PrinterConfigs.RANGE.setIntegerValue(before);
             }
         });
-        Scenario fb = new Scenario("server/fallback/printer-still-works-client-only");
-        fb.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
-        fb.put(1, 0, 0, STONE);
-        fb.put(2, 0, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.EAST));
-        fb.put(4, 1, 0, GATE);
-        fb.extraCommands.add("give @s minecraft:dirt 3");
-        int[][] sent = {{0, 0, 0}};
-        fb.at.put(0, c -> sent[0] = new int[] {ServerAssist.intentsSent, ServerAssist.airSent, ServerAssist.shulkerSent});
-        fb.maxTicks = 700;
-        fb.check = (c, sc) -> {
-            String problem = Scenario.allBuilt(c, sc);
-            if (problem != null) return problem;
-            boolean quiet = sent[0][0] == ServerAssist.intentsSent && sent[0][1] == ServerAssist.airSent && sent[0][2] == ServerAssist.shulkerSent;
-            return quiet ? null : "the printer sent a server-part request";
-        };
-        register(r, fb);
+        registerClientOnly(r, "server/fallback/printer-still-works-client-only");
 
         // the last test: the switch is off; the test player joins again (a fresh connection: the server's chat spam counter of
         // a long test run would kick a player the moment the operator rights are gone), is told the switch is still off,
@@ -387,15 +322,13 @@ final class ServerTests {
                 case 0:
                     if (ServerFeatures.printerAllowed) return false;
                     if (++nonOp[1] < 10) return false;
-                    c.mc.world.sendQuittingDisconnectingPacket();
-                    c.mc.loadWorld(null);
-                    c.mc.displayGuiScreen(new GuiMainMenu());
+                    leave(c);
                     nonOp[0] = 1;
                     nonOp[1] = 0;
                     return false;
                 case 1:
                     if (++nonOp[1] < 40) return false;
-                    FMLClientHandler.instance().connectToServer(new GuiMainMenu(), new ServerData("selftest", System.getProperty("litematicaupgraded.selftest.join", ""), false));
+                    rejoin();
                     nonOp[0] = 2;
                     nonOp[1] = 0;
                     return false;
@@ -423,6 +356,205 @@ final class ServerTests {
                     return true;
             }
         });
+    }
+
+    /** Facing, half, axis, delay and mode in one click, set by the server (our server part, or a Carpet server with the rule on). */
+    static void registerAccurate(Runner.Registry r, String prefix) {
+        Scenario a1 = accurate(prefix + "stairs-facing-and-half");
+        a1.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
+        register(r, a1);
+        Scenario a2 = accurate(prefix + "piston-facing-down-on-the-ground");
+        a2.put(0, 0, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.DOWN));
+        register(r, a2);
+        Scenario a3 = accurate(prefix + "repeater-delay-and-comparator-mode-without-extra-clicks");
+        a3.put(0, 0, 0, Blocks.UNPOWERED_REPEATER.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.WEST).withProperty(BlockRedstoneRepeater.DELAY, 4));
+        a3.put(2, 0, 0, Blocks.UNPOWERED_COMPARATOR.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.SOUTH)
+            .withProperty(BlockRedstoneComparator.MODE, BlockRedstoneComparator.Mode.SUBTRACT));
+        register(r, a3);
+        Scenario a4 = accurate(prefix + "slab-top-half-and-log-axis");
+        a4.put(0, 0, 0, Blocks.STONE_SLAB.getDefaultState().withProperty(BlockSlab.HALF, BlockSlab.EnumBlockHalf.TOP).withProperty(BlockStoneSlab.VARIANT, BlockStoneSlab.EnumType.STONE));
+        a4.put(2, 0, 0, Blocks.LOG.getDefaultState().withProperty(BlockOldLog.VARIANT, net.minecraft.block.BlockPlanks.EnumType.OAK).withProperty(BlockLog.LOG_AXIS, BlockLog.EnumAxis.X));
+        register(r, a4);
+        // Easy Place asks the server too: a top stair and a top trapdoor with only the ground to click on (no click of
+        // its own gives a top half there), an open gate and a lever switched on, each in one click, with no state clicks after
+        Scenario a5 = new Scenario(prefix + "easy-place-sets-the-whole-state-in-one-click");
+        a5.autoEnable = false;
+        BlockPos[] easy = {new BlockPos(0, 0, 0), new BlockPos(2, 0, 0), new BlockPos(4, 0, 0), new BlockPos(6, 0, 0)};
+        a5.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.EAST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
+        a5.put(2, 0, 0, Blocks.TRAPDOOR.getDefaultState().withProperty(BlockTrapDoor.FACING, EnumFacing.NORTH)
+            .withProperty(BlockTrapDoor.HALF, BlockTrapDoor.DoorHalf.TOP).withProperty(BlockTrapDoor.OPEN, true));
+        a5.put(4, 0, 0, GATE.withProperty(BlockFenceGate.OPEN, true));
+        a5.preplaced.put(new BlockPos(5, 0, 0), STONE);
+        a5.put(6, 0, 0, Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST).withProperty(BlockLever.POWERED, true));
+        int[] a5Intents = {0};
+        a5.at.put(0, c -> {
+            a5Intents[0] = ServerAssist.intentsSent;
+            PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(true);
+        });
+        a5.stable = 10;
+        a5.check = (c, sc) -> {
+            for (BlockPos rel : easy) {
+                IBlockState real = c.mc.world.getBlockState(sc.world(rel));
+                if (real.getBlock().isAir(real, c.mc.world, sc.world(rel))) {
+                    PrinterTests.clickEasyPlace(c, sc, rel.getX(), rel.getY(), rel.getZ());
+                    return rel + " not placed yet";
+                }
+            }
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            return ServerAssist.intentsSent - a5Intents[0] >= easy.length ? null : "only " + (ServerAssist.intentsSent - a5Intents[0]) + " placement intents were sent";
+        };
+        register(r, a5);
+        // redstone parts come out unpowered (the world powers them), though the schematic saved them powered
+        Scenario a6 = accurate(prefix + "redstone-parts-placed-unpowered");
+        a6.put(0, 0, 0, Blocks.POWERED_REPEATER.getDefaultState().withProperty(BlockHorizontal.FACING, EnumFacing.WEST).withProperty(BlockRedstoneRepeater.DELAY, 3));
+        a6.put(2, 0, 0, Blocks.GOLDEN_RAIL.getDefaultState().withProperty(BlockRailPowered.POWERED, true));
+        a6.stable = 10;
+        Scenario.Check a6Built = a6.check;
+        a6.check = (c, sc) -> {
+            String problem = a6Built.problem(c, sc);
+            if (problem != null) return problem;
+            IBlockState repeater = c.mc.world.getBlockState(sc.world(new BlockPos(0, 0, 0)));
+            if (repeater.getBlock() != Blocks.UNPOWERED_REPEATER || repeater.getValue(BlockRedstoneRepeater.DELAY) != 3) return "the repeater is " + repeater + ", wanted unpowered with delay 3";
+            IBlockState rail = c.mc.world.getBlockState(sc.world(new BlockPos(2, 0, 0)));
+            return rail.getValue(BlockRailPowered.POWERED) ? "the powered rail is powered with nothing powering it" : null;
+        };
+        register(r, a6);
+        // a door takes the schematic's open and hinge though its two halves come from one click
+        Scenario a7 = accurate(prefix + "door-open-with-its-hinge");
+        a7.put(0, 0, 0, Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.FACING, EnumFacing.EAST).withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.LOWER).withProperty(BlockDoor.OPEN, true));
+        // the world stores a door's facing and open in the lower half, its hinge in the upper one
+        a7.put(0, 1, 0, Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.UPPER).withProperty(BlockDoor.HINGE, BlockDoor.EnumHingePosition.RIGHT));
+        a7.stable = 20;
+        register(r, a7);
+        // side by side rails keep their straight shape, one placed a tick after the other: vanilla would bend them together
+        Scenario a8 = accurate(prefix + "rails-side-by-side-keep-their-shape");
+        IBlockState straight = Blocks.RAIL.getDefaultState().withProperty(BlockRail.SHAPE, BlockRailBase.EnumRailDirection.NORTH_SOUTH);
+        a8.put(0, 0, 0, straight).put(1, 0, 0, straight);
+        a8.perTick = 1;
+        a8.stable = 20;
+        register(r, a8);
+        // a lever placed on acts like one switched on by hand: the lamp it touches lights up
+        Scenario a9 = accurate(prefix + "lever-placed-on-powers-what-it-touches");
+        a9.preplaced.put(new BlockPos(0, 0, 0), STONE);
+        a9.preplaced.put(new BlockPos(2, 0, 0), Blocks.REDSTONE_LAMP.getDefaultState());
+        a9.put(1, 0, 0, Blocks.LEVER.getDefaultState().withProperty(BlockLever.FACING, BlockLever.EnumOrientation.EAST).withProperty(BlockLever.POWERED, true));
+        Scenario.Check a9Built = a9.check;
+        a9.check = (c, sc) -> {
+            String problem = a9Built.problem(c, sc);
+            if (problem != null) return problem;
+            return c.mc.world.getBlockState(sc.world(new BlockPos(2, 0, 0))).getBlock() == Blocks.LIT_REDSTONE_LAMP ? null : "the lamp next to the lever is not lit";
+        };
+        register(r, a9);
+        // a sign comes from an item that is no block item, like a door: its rotation is the server's too
+        Scenario a10 = accurate(prefix + "standing-sign-rotation");
+        a10.put(0, 0, 0, Blocks.STANDING_SIGN.getDefaultState().withProperty(BlockStandingSign.ROTATION, 5));
+        a10.stable = 20;
+        register(r, a10);
+    }
+
+    /** Items out of shulker boxes in the inventory (our server part, or a Carpet server with the rule on). */
+    static void registerShulker(Runner.Registry r, String prefix) {
+        Scenario s1 = new Scenario(prefix + "printer-takes-missing-blocks-from-a-shulker-box");
+        s1.give = false;
+        s1.put(0, 0, 0, STONE).put(1, 0, 0, STONE).put(2, 0, 0, STONE).put(3, 0, 0, STONE);
+        s1.extraCommands.add(box("stone", 8));
+        s1.extraReady = mc -> hasBoxes(mc, 1);
+        int[] shulker = {0};
+        s1.at.put(0, c -> shulker[0] = ServerAssist.shulkerSent);
+        s1.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            int left = carried(c.mc, Item.getItemFromBlock(Blocks.STONE)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            if (left != 4) return "stone left over: " + left + ", wanted 4 (8 in the box, 4 placed)";
+            return ServerAssist.shulkerSent > shulker[0] ? null : "no restock request was sent";
+        };
+        register(r, s1);
+        Scenario s2 = new Scenario(prefix + "several-boxes-and-item-kinds");
+        s2.give = false;
+        s2.put(0, 0, 0, STONE).put(1, 0, 0, STONE).put(2, 0, 0, Blocks.DIRT.getDefaultState()).put(3, 0, 0, Blocks.DIRT.getDefaultState());
+        s2.extraCommands.add(box("stone", 5));
+        s2.extraCommands.add(box("dirt", 5));
+        s2.extraReady = mc -> hasBoxes(mc, 2);
+        s2.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            int stone = carried(c.mc, Item.getItemFromBlock(Blocks.STONE)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            int dirt = carried(c.mc, Item.getItemFromBlock(Blocks.DIRT)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.DIRT));
+            return stone == 3 && dirt == 3 ? null : "left over: stone " + stone + " (wanted 3), dirt " + dirt + " (wanted 3)";
+        };
+        register(r, s2);
+        Scenario s3 = new Scenario(prefix + "box-left-alone-when-nothing-is-missing");
+        s3.put(0, 0, 0, STONE).put(1, 0, 0, STONE);
+        s3.extraCommands.add(box("dirt", 8));
+        s3.extraReady = mc -> hasBoxes(mc, 1);
+        int[] shulkerBefore = {0};
+        s3.at.put(0, c -> shulkerBefore[0] = ServerAssist.shulkerSent);
+        s3.stable = 30;
+        s3.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            if (ServerAssist.shulkerSent != shulkerBefore[0]) return "a restock was asked for although nothing was missing";
+            return inBoxes(c.mc, Item.getItemFromBlock(Blocks.DIRT)) == 8 && carried(c.mc, Item.getItemFromBlock(Blocks.DIRT)) == 0 ? null : "the box was emptied";
+        };
+        register(r, s3);
+        // Easy Place (printer off) takes the block out of the box too; it clicks the first spot not built yet
+        Scenario s4 = new Scenario(prefix + "easy-place-takes-missing-blocks-from-a-shulker-box");
+        s4.give = false;
+        s4.autoEnable = false;
+        s4.put(0, 0, 0, STONE).put(1, 0, 0, STONE);
+        s4.extraCommands.add(box("stone", 8));
+        s4.extraReady = mc -> hasBoxes(mc, 1);
+        int[] easyBefore = {0};
+        s4.at.put(0, c -> {
+            easyBefore[0] = ServerAssist.shulkerSent;
+            PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(false);
+        });
+        s4.stable = 10;
+        s4.check = (c, sc) -> {
+            for (int x = 0; x <= 1; x++) {
+                if (c.mc.world.getBlockState(sc.world(new BlockPos(x, 0, 0))) != STONE) {
+                    PrinterTests.clickEasyPlace(c, sc, x, 0, 0);
+                    return "stone at x=" + x + " not placed yet";
+                }
+            }
+            int left = carried(c.mc, Item.getItemFromBlock(Blocks.STONE)) + inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            if (left != 6) return "stone left over: " + left + ", wanted 6 (8 in the box, 2 placed)";
+            return ServerAssist.shulkerSent > easyBefore[0] ? null : "no restock request was sent";
+        };
+        register(r, s4);
+    }
+
+    /** The printer on a server that offers nothing: it builds by itself and asks the server for nothing. */
+    static void registerClientOnly(Runner.Registry r, String id) {
+        Scenario fb = new Scenario(id);
+        fb.put(0, 0, 0, Blocks.STONE_STAIRS.getDefaultState().withProperty(BlockStairs.FACING, EnumFacing.WEST).withProperty(BlockStairs.HALF, BlockStairs.EnumHalf.TOP));
+        fb.put(1, 0, 0, STONE);
+        fb.put(2, 0, 0, PrinterTests.facing(Blocks.PISTON, EnumFacing.EAST));
+        fb.put(4, 1, 0, GATE);
+        fb.extraCommands.add("give @s minecraft:dirt 3");
+        int[][] sent = {{0, 0, 0}};
+        fb.at.put(0, c -> sent[0] = new int[] {ServerAssist.intentsSent, ServerAssist.airSent, ServerAssist.shulkerSent});
+        fb.maxTicks = 700;
+        fb.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            boolean quiet = sent[0][0] == ServerAssist.intentsSent && sent[0][1] == ServerAssist.airSent && sent[0][2] == ServerAssist.shulkerSent;
+            return quiet ? null : "the printer sent a server-part request";
+        };
+        register(r, fb);
+    }
+
+    /** Leaves the server for the main menu. */
+    static void leave(Runner.Context c) {
+        c.mc.world.sendQuittingDisconnectingPacket();
+        c.mc.loadWorld(null);
+        c.mc.displayGuiScreen(new GuiMainMenu());
+    }
+
+    /** Joins the test server again. */
+    static void rejoin() {
+        FMLClientHandler.instance().connectToServer(new GuiMainMenu(), new ServerData("selftest", System.getProperty("litematicaupgraded.selftest.join", ""), false));
     }
 
     /**

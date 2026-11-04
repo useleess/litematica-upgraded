@@ -95,6 +95,11 @@ public final class Printer {
         return PrinterConfigs.PRINTER_ENABLED.getBooleanValue() && ServerFeatures.printerAllowed;
     }
 
+    /** Whether the open container screen is the printer's own, opened to fill it. */
+    boolean fillingContainer() {
+        return filler.busy();
+    }
+
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -292,7 +297,7 @@ public final class Printer {
             ServerAssist.restock(player, required);
             return Result.NO_ITEM;
         }
-        // with accurate placement any click that makes the block does: the server sets facing, half, axis, delay and mode
+        // with accurate placement any click that makes the block does: the server sets the schematic state (AccuratePlacement)
         PlacementSolver.Solution solution = ServerAssist.accurate(state.getBlock())
             ? PlacementSolver.solveAccurate(world, player, player.getHeldItem(hand), state, pos) : null;
         if (solution != null) {
@@ -415,12 +420,17 @@ public final class Printer {
 
     /** Fixes a repeater's delay, a comparator's mode or a lever's switch by right clicking the block as often as needed. */
     private Result clickBlock(Minecraft mc, EntityPlayerSP player, WorldClient world, Candidate candidate) {
-        Vec3d hit = new Vec3d(candidate.pos.getX() + 0.5, candidate.pos.getY() + 0.5, candidate.pos.getZ() + 0.5);
-        PlacementSolver.Solution solution = new PlacementSolver.Solution(candidate.pos, EnumFacing.UP, hit, null, null);
-        for (int i = 0; i < candidate.clicks; i++) {
-            if (!click(mc, player, world, solution, EnumHand.MAIN_HAND, false)) return Result.FAILED;
+        return clickState(mc, player, world, candidate.pos, candidate.target, candidate.clicks) ? Result.DONE : Result.FAILED;
+    }
+
+    /** Clicks the built block at pos the given times, to give it the target's delay, mode, switch or open state (StateClicks). */
+    static boolean clickState(Minecraft mc, EntityPlayerSP player, WorldClient world, BlockPos pos, IBlockState target, int clicks) {
+        Vec3d hit = new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+        PlacementSolver.Solution solution = new PlacementSolver.Solution(pos, EnumFacing.UP, hit, StateClicks.look(target), null);
+        for (int i = 0; i < clicks; i++) {
+            if (!click(mc, player, world, solution, EnumHand.MAIN_HAND, false)) return false;
         }
-        return Result.DONE;
+        return true;
     }
 
     // ---- mining: wrong, extra and wrong-state blocks, scaffolds, ice, the destroy assist ----

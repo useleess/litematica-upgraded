@@ -45,25 +45,32 @@ same table of 4 or more values twice: make one shared method or table instead.
   placement from `IMixinMaterialListPlacement`.
 - `mixin/`: all our patches of Litematica, malilib and Minecraft (`mixins.litematica_upgraded.json`); `IMixin*` are
   accessors. `MixinPerf*` = speed-ups, `Mixin*Modern` = newer-version schematics, `MixinTask*` = server-side
-  schematics, `MixinPlayerControllerMPFakeRotation` / `MixinEasyPlaceUtilsUseAction` = Easy Place.
+  schematics, `MixinPlayerControllerMPFakeRotation` / `MixinEasyPlaceUtilsUseAction` / `MixinEasyPlaceUtilsShulkerRestock` (takes a missing block out of a carried shulker box via `ServerAssist.restock`) / `MixinEasyPlaceUtilsStateClicks` (open, switch, delay, mode clicks via `FakeRotation.fixState` -> `Printer.clickState`, the list in `StateClicks`) = Easy Place.
 - `perf/`: the speed-ups and their settings (`PerfConfigs`): build threads (`PerfDispatcher`), empty slices
   (`SectionSlices`), ghost move and complete copy (`GhostMove`, `CompleteCopy`), batch drawing, far detail, sparse
   storage (`SparseBits`, `SparseIntArray`, `MemoryBudget`), F3 numbers (`PerfStats`), `PerfGuard` (turns a failing
   speed-up off). Pure rules in `PerfMath` (unit tested).
 - `preview/`: the 3D view in the schematic browser's info panel (turns on its own, drag with the left mouse to turn / tilt, wheel to zoom 0.25x-4x). `PreviewBuilder` (reads the file on the one "Litematica Upgraded preview" thread, shrinks a big file into a smaller schematic with `DownsampledGrid` - one real block per n x n x n cell, n from `PreviewMath.stepFor` so the longest side is at most 256, an opaque block wins its cell, shrunk further while over 200,000 blocks; then `PreviewSections` splits it into 16x16x16-cell sections and `SectionRunner` builds them side by side on a build pool sized like Turbo's (`PerfMath.workers`), each section drawn with vanilla's block renderer, always textured, in two passes: opaque + cut-out, then translucent; ambient occlusion off while building, full-bright light from `PreviewBlockAccess`, faces between neighbours culled. Over 20,000 blocks a rougher copy (`PreviewMath.ROUGH_BLOCKS`) is built first, then the shrunk one; a shrunk file with at most `PreviewMath.FULL_MAX_BLOCKS` blocks then gets its full 1:1 model built last, the same way, from every block of the file, handed over once complete; its build stops and the shrunk model stays when its vertex data passes `FULL_MAX_VERTICES` (`fullModelAllowed`)). `PreviewModel` (the sections as they finish, copied out as plain arrays - each build thread reuses its own builders, so no direct buffer is made per section; the render thread turns them into display lists, at most `UPLOAD_BUDGET_MS` per frame, so the view fills in piece by piece). `PreviewView` (render thread: draws what is uploaded, swaps the rough copy for the shrunk one when it is all there, uploads the full 1:1 model after it and draws it instead at every zoom (only once all of it is uploaded; `modelToDraw`; with it the zoom limit rises to `maxZoom`), keeps both in the `LruCache` (the full one under the key + `|1:1`), keeps the last 4 full models in an `LruCache` so going back to a file draws in the first frame, cancels the build of a file that is no longer selected, draws clipped with `ScissorMath`, yaw / pitch / zoom from the mouse via `PreviewMath`, fitted to the view rectangle by `PreviewMath.scaleToFit`; shows a percent while building and the `1:N` label of the model actually drawn (none for the full one); frees everything when the browser is no longer drawn; switches itself off on any error). `PreviewTiming` (read / shrink / build / upload / first picture / complete times of each preview, logged once as a `PERF preview` line, and the full model's build / upload / size as a `PERF preview-detail` line and read by the tests). `PreviewLayout` (the rectangle below the detail lines), `PreviewConfigs` (the "3D Preview" setting). Hooked in by `MixinSchematicInfoWidgetPreview` (draws, forwards click / release / scroll, also moves/shrinks masa's saved picture so nothing overlaps). Pure rules are unit tested.
 - `printer/`: the printer (`Printer`) and its helpers (order, look, range, mining, tools, fluids, scaffold...),
+  `ContainerGrab` = opening a chest / shulker box / hopper / dropper / dispenser takes what the selected layers still need (shift-clicks, works on any server),
   `ContainerFiller` = fill built containers (hoppers ... shulker boxes, double chests joined west/north first),
   `PrinterConfigs` = the "Litematica Upgraded" config tab (printer, speed settings), `PrinterInit` hooks it into malilib.
 - `remote/`: `RemoteTasks`, the client side of server-side save / paste / fill / replace / delete.
 - `server/`: the server part (accurate placement, air placement, extended reach, shulker restock, `ServerJobs` =
   saves and edits, `ServerConfig`, `PrinterCommand`), what the client knows of it (`ServerFeatures`, `RemoteClient`);
   `server/net/`: the network channel (`Net`) and its messages.
+  Accurate placement (also what Useleess Carpet answers on Carpet servers): the client sends `MessagePlacementIntent`
+  (x, y, z, state string `minecraft:block[prop=value,...]`) just before its placement click at that spot; the server applies
+  the intent to the block the click places (`AccuratePlacement.merge`: every property `settable` - all but `WORLD_MADE`
+  ones, a lever's `powered` allowed, iron `open` not - and only if the drops stay the same). The capabilities message's
+  last field `accurateStates` tells the client the server sets these full states (older servers: orientation only, so
+  Easy Place clicks open / switch states itself).
 
 **Tests:**
 - `src/test/`: fast unit tests (no game), run by `bash tools/check.sh` with the build; include `CodeHygieneTest`,
   `LangKeysTest`, `RelocationTest`, `SelfTestHygieneTest` (no fixed-position clicks).
 - `src/selftest/`: in-world tests, built into a separate selftest jar (never released). `tools/ingame.ps1` runs them on
-  the test box in phases: **plain** (server without the mod), **forge** (Forge dedicated server with the mod),
+  the test box in phases: **plain** (server without the mod), **forge** (Forge dedicated server with the mod), **uc** (real Useleess Carpet server, `UcTests`: its launcher jar comes via box-inputs.json, must be newer than UC's code),
   **optifine** (plain server, OptiFine in the client), **liteloader** (plain server, Forge + LiteLoader and no MixinBooter in the client, masa's five LiteLoader mods, `compat/liteloader/`), **liteloader-first** (LiteLoader started before Forge, OptiFine in mods/1.12.2, masa's mods but not his Litematica: a player's setup, `compat/liteloader-first/`), **liteloader-optifine** (the Discord #4 setup: Forge first, LiteLoader after it, OptiFine in mods/1.12.2, masa's mods but not his Litematica; the client must keep ticking and drawing after joining, `compat/liteloader-optifine/`), **liteloader-alone** (Forge + LiteLoader, no other mods, `compat/liteloader-alone/`). `bash tools/check-ingame.sh` starts it, `tools/ingame_verdict.py`
   reads the result.
 - `test-plan.json`: one line per feature = test id prefix + how many in-game tests must pass.
@@ -77,7 +84,7 @@ same table of 4 or more values twice: make one shared method or table instead.
   chunks, with our build threads, slices, batch drawing and move copies patched in by the `MixinPerf*` mixins.
 - **Printer tick:** `Printer` is on the Forge event bus (client tick): finds the wanted blocks of the loaded
   placements in reach (`PrinterArea`, `PrinterIteration`, `PrinterOrder`), picks the item, reports the rotation
-  (`PrinterLook`, `FakeRotation`) and clicks; with the server part, `ServerAssist` sends accurate / air / ranged messages.
+  (`PrinterLook`, `FakeRotation`) and clicks (`TopLayerClick`: Easy Place top-face clicks at y 255 made the way the server accepts); with the server part, `ServerAssist` sends accurate / air / ranged messages.
 - **Server part:** `CommonProxy` opens the channel (`server/net/Net`); `ServerEvents` tells each client what the server
   supports (`MessageCapabilities` -> `ServerFeatures`). Accurate placement etc. are answered in `server/`. Save /
   paste / edit: the `MixinTask*` mixins hand Litematica's task to `RemoteTasks`, the data goes in slices

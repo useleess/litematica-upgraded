@@ -1,8 +1,11 @@
 package com.useleess.litematicaupgraded;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -29,6 +32,23 @@ public class CreditsTest {
         }
         check("the Credits setting (en_us.lang)", settings, missing);
         assertTrue("credits missing:\n" + String.join("\n", missing), missing.isEmpty());
+    }
+
+    /** The licence texts ship inside the jar (packaged resources = what the jar holds). */
+    @Test
+    public void licenceTextsAreInTheJar() throws IOException {
+        assertTrue(packaged("META-INF/LICENSE-LGPL-3.0.txt").contains("GNU LESSER GENERAL PUBLIC LICENSE"));
+        assertTrue(packaged("META-INF/LICENSE-MIT-Schematica.txt").contains("MIT"));
+    }
+
+    private static String packaged(String path) throws IOException {
+        try (InputStream in = CreditsTest.class.getClassLoader().getResourceAsStream(path)) {
+            assertNotNull(path + " is not packaged into the jar", in);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            for (int n; (n = in.read(buffer)) > 0; ) out.write(buffer, 0, n);
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        }
     }
 
     private static void check(String place, String text, List<String> missing) {

@@ -25,7 +25,7 @@ grep -vE '^\S*\[2m' "$LOG" | tail -30
 [ -f "$HERE/build-ingame/latest.log" ] || { echo "no game log came back"; exit 1; }
 BASE="$HERE/.base-plan.json"
 git -C "$HERE" show master:test-plan.json > "$BASE" 2>/dev/null || cp "$HERE/test-plan.json" "$BASE"
-[ -n "$FILTER" ] && { python -I "$HERE/tools/ingame_verdict.py" "$HERE/build-ingame/latest.log" /dev/null 2>/dev/null; grep -E "SCOPE-TEST (fail|pass)" "$HERE/build-ingame/latest.log" | tail -40; grep -q "SCOPE-TEST done" "$HERE/build-ingame/latest.log" && ! grep -q "SCOPE-TEST fail" "$HERE/build-ingame/latest.log"; rc=$?; [ $rc -eq 0 ] && rm -rf "$HERE/build-ingame" "$BASE"; exit $rc; }
+[ -n "$FILTER" ] && { python -I "$HERE/tools/ingame_verdict.py" "$HERE/build-ingame/latest.log" /dev/null 2>/dev/null; grep -E "SCOPE-TEST (fail|pass)" "$HERE/build-ingame/latest.log" | tail -40; grep -q "SCOPE-TEST done" "$HERE/build-ingame/latest.log" && ! grep -q "SCOPE-TEST fail" "$HERE/build-ingame/latest.log"; rc=$?; [ $rc -eq 0 ] && [ -z "$KEEP" ] && rm -rf "$HERE/build-ingame" "$BASE"; exit $rc; }
 python -I "$HERE/tools/ingame_verdict.py" "$HERE/build-ingame/latest.log" "$HERE/test-plan.json" "$BASE"
 rc=$?
 # a passed run leaves nothing behind; a failed one keeps its logs + screenshots in build-ingame/ to find the cause

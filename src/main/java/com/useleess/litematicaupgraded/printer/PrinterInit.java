@@ -23,6 +23,7 @@ public class PrinterInit implements InitializationHandler {
     /** Called once from the mod's init event. */
     public static void init() {
         MinecraftForge.EVENT_BUS.register(Printer.INSTANCE);
+        MinecraftForge.EVENT_BUS.register(ContainerGrab.INSTANCE);
         MinecraftForge.EVENT_BUS.register(ManualMining.INSTANCE);
         MinecraftForge.EVENT_BUS.register(SignTextPaste.INSTANCE);
         MinecraftForge.EVENT_BUS.register(DestroyAssist.INSTANCE);
