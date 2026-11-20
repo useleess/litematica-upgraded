@@ -5,6 +5,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import net.minecraft.block.BlockDirectional;
+import net.minecraft.block.BlockDoor;
+import net.minecraft.block.BlockDoublePlant;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.BlockLever;
 import net.minecraft.block.BlockRedstoneComparator;
@@ -34,6 +36,17 @@ public class PrinterLogicTest {
         assertTrue(stone < lever && lever < repeater && repeater < piston);
         assertEquals(piston, observer);
         assertEquals(piston, PrinterOrder.tier(Blocks.DROPPER.getDefaultState()));
+    }
+
+    @Test
+    public void onlyTheUpperPartsOfDoorsAndTallPlantsComeWithTheirLowerPart() {
+        IBlockState door = Blocks.OAK_DOOR.getDefaultState();
+        IBlockState plant = Blocks.DOUBLE_PLANT.getDefaultState();
+        assertTrue(TwoBlockParts.isUpperPart(door.withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.UPPER)));
+        assertFalse(TwoBlockParts.isUpperPart(door.withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.LOWER)));
+        assertTrue(TwoBlockParts.isUpperPart(plant.withProperty(BlockDoublePlant.HALF, BlockDoublePlant.EnumBlockHalf.UPPER)));
+        assertFalse(TwoBlockParts.isUpperPart(plant.withProperty(BlockDoublePlant.HALF, BlockDoublePlant.EnumBlockHalf.LOWER)));
+        assertFalse(TwoBlockParts.isUpperPart(Blocks.TRAPDOOR.getDefaultState()));
     }
 
     @Test

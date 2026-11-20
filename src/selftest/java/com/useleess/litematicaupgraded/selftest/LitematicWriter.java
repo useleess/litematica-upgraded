@@ -95,6 +95,35 @@ final class LitematicWriter {
         assemble(file, sx, sy, sz, palette, packed, new LinkedHashMap<>(), blocks.size());
     }
 
+    /**
+     * A big box where about {@code percent} of the cells hold one of the given blocks, picked by a fixed pseudo-random
+     * rule (the same file every run), written straight into the packed array (no per-cell map).
+     */
+    static void writeDense(Path file, int sx, int sy, int sz, List<IBlockState> blocks, int percent) throws IOException {
+        List<IBlockState> palette = new ArrayList<>();
+        palette.add(Blocks.AIR.getDefaultState());
+        palette.addAll(blocks);
+        int bits = Math.max(2, 32 - Integer.numberOfLeadingZeros(palette.size() - 1));
+        long volume = (long) sx * sy * sz;
+        long[] packed = new long[(int) ((volume * bits + 63) / 64)];
+        long mask = (1L << bits) - 1;
+        int count = 0;
+        for (long i = 0; i < volume; i++) {
+            long h = (i + 1) * 0x9E3779B97F4A7C15L;
+            h ^= h >>> 31;
+            h *= 0xBF58476D1CE4E5B9L;
+            h ^= h >>> 29;
+            if (Math.floorMod(h, 100) >= percent) continue;
+            long id = 1 + Math.floorMod(h >>> 8, blocks.size());
+            long start = i * bits;
+            int word = (int) (start >> 6), offset = (int) (start & 63);
+            packed[word] |= (id & mask) << offset;
+            if (offset + bits > 64) packed[word + 1] |= (id & mask) >>> (64 - offset);
+            count++;
+        }
+        assemble(file, sx, sy, sz, palette, packed, new LinkedHashMap<>(), count);
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void assemble(Path file, int sx, int sy, int sz, List<IBlockState> palette, long[] packed,
                                  Map<BlockPos, NBTTagCompound> tiles, int blockCount) throws IOException {

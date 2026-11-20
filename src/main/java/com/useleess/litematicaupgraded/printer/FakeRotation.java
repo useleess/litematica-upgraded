@@ -1,6 +1,7 @@
 // Easy Place on servers without a mod: the fake rotation of Schematica Upgraded's EasyPlace (Lunatrius / HackerRouter / Useleess, MIT).
 package com.useleess.litematicaupgraded.printer;
 
+import net.minecraft.block.BlockDoor;
 import net.minecraft.block.BlockSlab;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
@@ -40,8 +41,9 @@ public final class FakeRotation {
         BlockPos target = world.getBlockState(pos).getBlock().isReplaceable(world, pos) ? pos : pos.offset(side);
         IBlockState wanted = schematic.getBlockState(target);
         ItemStack held = player.getHeldItem(hand);
-        // slabs have their own click logic in Litematica (halves, double slabs)
-        if (wanted.getBlock() instanceof BlockSlab || wanted.getBlock().isAir(wanted, schematic, target) || PlacementSolver.blockOf(held.getItem()) == null) return null;
+        // slabs have their own click logic in Litematica (halves, double slabs); of the other items only doors are turned
+        if (wanted.getBlock() instanceof BlockSlab || wanted.getBlock().isAir(wanted, schematic, target)
+            || PlacementSolver.blockOf(held.getItem()) == null && !(wanted.getBlock() instanceof BlockDoor)) return null;
         PlacementSolver.Solution solution = ServerAssist.accurate(wanted.getBlock())
             ? PlacementSolver.solveAccurate(world, player, held, wanted, target) : null;
         if (solution != null) {
@@ -74,7 +76,7 @@ public final class FakeRotation {
         }
         if (busy || schematic == null) return false;
         IBlockState target = schematic.getBlockState(pos);
-        int clicks = StateClicks.clicks(world.getBlockState(pos), target);
+        int clicks = StateClicks.clicks(StateMatch.worldState(world, pos), target);
         if (clicks <= 0) return false;
         busy = true;
         try {

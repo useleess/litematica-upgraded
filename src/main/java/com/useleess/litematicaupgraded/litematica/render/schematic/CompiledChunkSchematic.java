@@ -12,6 +12,8 @@ public class CompiledChunkSchematic extends CompiledChunk
     private final boolean[] overlayLayersStarted = new boolean[OverlayRenderType.COUNT];
     private final BufferBuilder.State[] blockBufferStates = new BufferBuilder.State[BlockRenderLayer.values().length];
     private final BufferBuilder.State[] overlayBufferStates = new BufferBuilder.State[OverlayRenderType.COUNT];
+    /** Bytes of vertex data each block layer, then each overlay type, was built with (the build's signature in the tests). */
+    private final int[] builtBytes = new int[BlockRenderLayer.values().length + OverlayRenderType.COUNT];
     private boolean overlayEmpty = true;
 
     public boolean isOverlayEmpty()
@@ -58,6 +60,35 @@ public class CompiledChunkSchematic extends CompiledChunk
     public void setOverlayBufferState(OverlayRenderType type, BufferBuilder.State state)
     {
         this.overlayBufferStates[type.ordinal()] = state;
+    }
+
+    /** Whether it has see-through blocks or overlay quads to re-sort but no copy of their vertices (#19). */
+    public boolean lacksSortCopy()
+    {
+        return (this.isLayerEmpty(BlockRenderLayer.TRANSLUCENT) == false && this.getBlockBufferState(BlockRenderLayer.TRANSLUCENT) == null)
+            || (this.isOverlayTypeEmpty(OverlayRenderType.QUAD) == false && this.getOverlayBufferState(OverlayRenderType.QUAD) == null);
+    }
+
+    public void setBuiltBytes(BlockRenderLayer layer, int bytes)
+    {
+        this.builtBytes[layer.ordinal()] = bytes;
+    }
+
+    public void setBuiltBytes(OverlayRenderType type, int bytes)
+    {
+        this.builtBytes[BlockRenderLayer.values().length + type.ordinal()] = bytes;
+    }
+
+    public int[] getBuiltBytes()
+    {
+        return this.builtBytes.clone();
+    }
+
+    /** Lets go of the re-sort copies (a piece far from the camera is never re-sorted). */
+    public void dropSortCopies()
+    {
+        java.util.Arrays.fill(this.blockBufferStates, null);
+        java.util.Arrays.fill(this.overlayBufferStates, null);
     }
 
     public static final CompiledChunkSchematic EMPTY = new CompiledChunkSchematic() {

@@ -228,6 +228,9 @@ public final class Runner {
                 for (int i = 0; i < Math.min(8, trace.length); i++) System.out.println("  at " + trace[i]);
             }
             failed++;
+            // a failed test may stop before its own clean-up: what it left must not trip the next tests
+            PerfTests.removeAllPlacements();
+            Scenario.resetSettings();
         }
         current = null;
     }

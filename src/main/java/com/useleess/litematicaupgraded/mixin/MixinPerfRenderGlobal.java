@@ -229,7 +229,7 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
         this.perf$camX = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partialTicks;
         this.perf$camY = entity.lastTickPosY + (entity.posY - entity.lastTickPosY) * partialTicks;
         this.perf$camZ = entity.lastTickPosZ + (entity.posZ - entity.lastTickPosZ) * partialTicks;
-        List<RenderChunkSchematicVbo> base = GhostMove.isActive() ? GhostMove.drawList() : this.renderInfos;
+        List<RenderChunkSchematicVbo> base = GhostMove.isActive() ? GhostMove.drawList(this.renderInfos) : this.renderInfos;
         DrawStats.listed(base.size());
         this.perf$drawList.addAll(base);
     }
@@ -389,7 +389,7 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
      * same place; the old ones become the ghosts.
      */
     @Override
-    public List<RenderChunkSchematicVbo> perf$detachChunkRenderers()
+    public List<RenderChunkSchematicVbo> perf$detachChunkRenderers(java.util.Set<Long> sections)
     {
         if (this.viewFrustum == null || this.world == null)
         {
@@ -403,9 +403,10 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
         {
             RenderChunkSchematicVbo old = (RenderChunkSchematicVbo) renderers[i];
 
-            if (old.getChunkRenderData() != CompiledChunkSchematic.EMPTY)
+            net.minecraft.util.math.BlockPos origin = old.getPosition();
+
+            if (old.getChunkRenderData() != CompiledChunkSchematic.EMPTY && sections.contains(origin.toLong()))
             {
-                net.minecraft.util.math.BlockPos origin = old.getPosition();
                 RenderChunkSchematicVbo fresh = (RenderChunkSchematicVbo) this.renderChunkFactory.create(this.world, (RenderGlobalSchematic) (Object) this, i);
                 fresh.setPosition(origin.getX(), origin.getY(), origin.getZ());
                 // nothing is built here until the copy of the moved placement marks it again (the ghost is drawn meanwhile)
@@ -415,9 +416,10 @@ public abstract class MixinPerfRenderGlobal implements PerfWorldRenderer
             }
         }
 
+        // the other placements' chunks keep their pending builds
         this.renderInfos.clear();
-        this.chunksToUpdate.clear();
-        this.perf$deferred.clear();
+        this.chunksToUpdate.removeAll(detached);
+        this.perf$deferred.removeAll(detached);
         this.displayListEntitiesDirty = true;
         return detached;
     }

@@ -7,13 +7,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.util.BlockRenderLayer;
 
 import com.useleess.litematicaupgraded.litematica.render.schematic.ChunkCompileTaskGeneratorSchematic;
 import com.useleess.litematicaupgraded.litematica.render.schematic.ChunkRenderWorkerLitematica;
 import com.useleess.litematicaupgraded.litematica.render.schematic.CompiledChunkSchematic;
 import com.useleess.litematicaupgraded.litematica.render.schematic.RenderChunkSchematicVbo;
-import com.useleess.litematicaupgraded.litematica.render.schematic.RenderChunkSchematicVbo.OverlayRenderType;
 import com.useleess.litematicaupgraded.perf.PerfChunk;
 import com.useleess.litematicaupgraded.perf.PerfStats;
 
@@ -106,7 +104,7 @@ public abstract class MixinPerfWorker
         }
     }
 
-    /** What a build made: the vertex count of each layer and overlay, kept by position and by the thread that built it. */
+    /** What a build made: the vertex bytes of each layer and overlay, kept by position and by the thread that built it. */
     private static void perf$recordSignature(RenderChunkSchematicVbo renderer, CompiledChunkSchematic data, boolean onMainThread)
     {
         if (data == null)
@@ -114,20 +112,6 @@ public abstract class MixinPerfWorker
             return;
         }
 
-        BlockRenderLayer[] layers = BlockRenderLayer.values();
-        OverlayRenderType[] overlays = OverlayRenderType.values();
-        int[] counts = new int[layers.length + overlays.length];
-
-        for (int i = 0; i < layers.length; ++i)
-        {
-            counts[i] = data.getBlockBufferState(layers[i]) != null ? data.getBlockBufferState(layers[i]).getVertexCount() : 0;
-        }
-
-        for (int i = 0; i < overlays.length; ++i)
-        {
-            counts[layers.length + i] = data.getOverlayBufferState(overlays[i]) != null ? data.getOverlayBufferState(overlays[i]).getVertexCount() : 0;
-        }
-
-        PerfStats.recordSignature(renderer.getPosition().toLong(), counts, onMainThread);
+        PerfStats.recordSignature(renderer.getPosition().toLong(), data.getBuiltBytes(), onMainThread);
     }
 }

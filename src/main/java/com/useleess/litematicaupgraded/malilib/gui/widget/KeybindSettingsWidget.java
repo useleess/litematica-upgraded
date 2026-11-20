@@ -20,7 +20,7 @@ import com.useleess.litematicaupgraded.malilib.util.data.Identifier;
 
 public class KeybindSettingsWidget extends InteractableWidget
 {
-    public static final Identifier TEXTURE = new Identifier(MaLiLibReference.MOD_ID, "textures/gui/gui_widgets.png");
+    public static final Identifier TEXTURE = new Identifier(MaLiLibReference.ASSETS_ID, "textures/gui/malilib/gui_widgets.png");
 
     protected final String keyBindName;
     protected final KeyBind keyBind;

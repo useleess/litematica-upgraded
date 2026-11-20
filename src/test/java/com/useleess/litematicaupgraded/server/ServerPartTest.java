@@ -201,6 +201,29 @@ public class ServerPartTest {
         assertEquals(Blocks.UNPOWERED_REPEATER, delayed.getBlock());
     }
 
+    /**
+     * Every property of every block the server may set is one a player chooses by placing or clicking; nothing the
+     * world fills in (a cauldron's water, snow layers, cake bites, growth: #16). A new kind of property fails here.
+     */
+    @Test
+    public void accuratePlacementNeverSetsContentsOfAnyBlock() {
+        java.util.Set<String> chosen = new java.util.HashSet<>(java.util.Arrays.asList("facing", "half", "axis", "shape", "delay",
+            "mode", "hinge", "open", "rotation", "in_wall", "north", "south", "east", "west", "up", "down", "suspended"));
+        java.util.Set<String> unexpected = new java.util.TreeSet<>();
+        for (net.minecraft.block.Block block : net.minecraft.block.Block.REGISTRY) {
+            for (net.minecraft.block.properties.IProperty<?> property : block.getBlockState().getProperties()) {
+                String name = property.getName();
+                if (AccuratePlacement.settable(block, name) && !chosen.contains(name)) unexpected.add(block.getRegistryName() + "[" + name + "]");
+            }
+        }
+        // a lever's switch is the one "powered" a player sets
+        unexpected.remove("minecraft:lever[powered]");
+        assertTrue("settable properties that are not the player's choice: " + unexpected, unexpected.isEmpty());
+        IBlockState cauldron = Blocks.CAULDRON.getDefaultState();
+        assertNull(AccuratePlacement.merge(cauldron, cauldron.withProperty(net.minecraft.block.BlockCauldron.LEVEL, 3)));
+        assertFalse(AccuratePlacement.supports(Blocks.CAULDRON));
+    }
+
     @Test
     public void accuratePlacementSetsWhatAPlayerCouldClickButNotPower() {
         // a lever's switch is the player's

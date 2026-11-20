@@ -21,12 +21,13 @@ import com.useleess.litematicaupgraded.malilib.util.game.wrap.RenderWrap;
 import com.useleess.litematicaupgraded.litematica.config.Configs;
 import com.useleess.litematicaupgraded.litematica.config.Hotkeys;
 import com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic;
+import com.useleess.litematicaupgraded.malilib.MaLiLibReference;
 
 public class LitematicaRenderer
 {
     private static final LitematicaRenderer INSTANCE = new LitematicaRenderer();
 
-    private static final ShaderProgram SHADER_ALPHA = new ShaderProgram("litematica", null, "shaders/alpha.frag");
+    private static final ShaderProgram SHADER_ALPHA = new ShaderProgram(MaLiLibReference.ASSETS_ID, null, "shaders/litematica/alpha.frag");
 
     private Minecraft mc;
     private RenderGlobalSchematic worldRenderer;

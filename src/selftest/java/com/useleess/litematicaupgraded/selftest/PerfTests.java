@@ -19,6 +19,7 @@ import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -31,6 +32,8 @@ import com.useleess.litematicaupgraded.litematica.schematic.SchematicRegion;
 import com.useleess.litematicaupgraded.litematica.schematic.container.ArrayBlockContainer;
 import com.useleess.litematicaupgraded.litematica.schematic.container.BlockContainer;
 import com.useleess.litematicaupgraded.litematica.schematic.placement.SchematicPlacement;
+import com.useleess.litematicaupgraded.litematica.render.schematic.CompiledChunkSchematic;
+import com.useleess.litematicaupgraded.litematica.render.schematic.RenderChunkSchematicVbo;
 import com.useleess.litematicaupgraded.litematica.schematic.placement.SchematicPlacementManager;
 import com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler;
 import com.useleess.litematicaupgraded.malilib.util.position.BlockPos;
@@ -345,7 +348,9 @@ final class PerfTests {
         registerThreads(r);
         registerSlicesAndCopy(r);
         registerGhost(r);
+        registerGhostBeside(r);
         registerSparse(r);
+        registerDense(r);
         PerfDrawTests.register(r);
     }
 
@@ -639,6 +644,133 @@ final class PerfTests {
         }, c -> rotate.run(c));
     }
 
+    /** The placements named in the manager's section list: name, whether still listed, enabled, and how many sections. */
+    private static String touchedPlacements() {
+        Map<SchematicPlacement, Integer> count = new java.util.IdentityHashMap<>();
+        for (com.useleess.litematicaupgraded.malilib.util.position.ChunkSectionPos s : manager().getAllTouchedSubChunks()) {
+            for (SchematicPlacementManager.PlacementPart part : manager().getAllPlacementsTouchingSubChunk(s)) count.merge(part.getPlacement(), 1, Integer::sum);
+        }
+        StringBuilder out = new StringBuilder();
+        for (Map.Entry<SchematicPlacement, Integer> e : count.entrySet()) {
+            SchematicPlacement p = e.getKey();
+            out.append(p.getName()).append(manager().getAllSchematicPlacements().contains(p) ? " listed" : " REMOVED")
+                    .append(p.isEnabled() ? " enabled " : " off ").append(e.getValue()).append("; ");
+        }
+        return out.toString();
+    }
+
+    /** The corners of the 16-block sections holding blocks of this placement (keys as BlockPos.toLong). */
+    private static java.util.Set<Long> sectionsOf(SchematicPlacement p) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        for (com.useleess.litematicaupgraded.malilib.util.position.ChunkSectionPos s : manager().getAllTouchedSubChunks()) {
+            for (SchematicPlacementManager.PlacementPart part : manager().getAllPlacementsTouchingSubChunk(s)) {
+                if (part.getPlacement() == p) out.add(new net.minecraft.util.math.BlockPos(s.getX() << 4, s.getY() << 4, s.getZ() << 4).toLong());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * A second placement of the big schematic on the player's side (towards -x): {@code sectionsAway} empty 16-block sections
+     * between the two, so its nearest chunks are in view; 0 = overlapping the first one, one block along.
+     */
+    private static SchematicPlacement placeBeside(SchematicPlacement p, int sectionsAway, String name) throws IOException {
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        for (long key : sectionsOf(p)) {
+            int x = net.minecraft.util.math.BlockPos.fromLong(key).getX();
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+        }
+        net.minecraft.util.math.BlockPos origin = p.getPosition().toVanillaPos();
+        int dx = sectionsAway == 0 ? 1 : -(maxX - minX + 16 * (sectionsAway + 2));
+        SchematicPlacement q = SchematicPlacement.create(loadBig(), new BlockPos(origin.getX() + dx, origin.getY(), origin.getZ()), name, true);
+        manager().addSchematicPlacement(q, false);
+        return q;
+    }
+
+    /**
+     * #15: smooth moving works when other placements are shown, as long as none shares a 16-block section with the moved one
+     * (a section's chunk holds the blocks of every placement in it); the others stay drawn while it moves. A placement that
+     * shares sections takes the normal path.
+     */
+    private static void registerGhostBeside(Runner.Registry r) {
+        Seq beside = new Seq();
+        r.waitFor("perf/ghost-beside/move-beside-another-placement", 16000, c -> {
+            removeAllPlacements();
+            resetSettings();
+            long[] builds = {PerfStats.builds()};
+            SchematicPlacement p, q;
+            try {
+                p = placeBig(c.mc, "selftest-perf-beside-a");
+                q = placeBeside(p, 2, "selftest-perf-beside-b");
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+            java.util.Set<Long> qSections = new java.util.HashSet<>();
+            beside.until("both placements to be built", 3000, 30, settled(builds)).once(x -> {
+                qSections.addAll(sectionsOf(q));
+                java.util.Set<Long> pOld = sectionsOf(p), pSections = new java.util.HashSet<>(pOld);
+                pSections.retainAll(qSections);
+                x.check(qSections.isEmpty() == false && pSections.isEmpty(), "the two placements share sections: " + pSections.size());
+                net.minecraft.util.math.BlockPos origin = p.getPosition().toVanillaPos();
+                for (int i = 1; i <= 4; i++) manager().setOrigin(p, new BlockPos(origin.getX(), origin.getY(), origin.getZ() + 5 * i));
+                int built = 0;
+                for (RenderChunkSchematicVbo rc : renderer().perf$listedRenderers()) {
+                    if (rc.getChunkRenderData() != CompiledChunkSchematic.EMPTY && pOld.contains(rc.getPosition().toLong())) built++;
+                }
+                x.check(GhostMove.isActive(), "moving a placement beside another one did not start the smooth move (its sections "
+                        + pOld.size() + ", the other's " + qSections.size() + ", built chunks where it was " + built + ", refused for a shared section "
+                        + PerfStats.ghostSharedSection() + " / nothing built " + PerfStats.ghostNothingBuilt() + " times so far; in the section list: " + touchedPlacements() + ")");
+                for (net.minecraft.client.renderer.chunk.RenderChunk ghost : GhostMove.renderers()) {
+                    net.minecraft.util.math.BlockPos g = ghost.getPosition().add(-GhostMove.currentOffset().getX(), -GhostMove.currentOffset().getY(), -GhostMove.currentOffset().getZ());
+                    x.check(qSections.contains(g.toLong()) == false, "the other placement's chunk at " + g + " moves along as a ghost");
+                }
+            }).until("a frame drawn while moving", 600, 1, x -> {
+                if (GhostMove.isActive() == false) return false;
+                for (RenderChunkSchematicVbo drawn : renderer().perf$lastDrawList()) {
+                    if (qSections.contains(drawn.getPosition().toLong()) && drawn.getChunkRenderData() != CompiledChunkSchematic.EMPTY) return true;
+                }
+                return false;
+            }).once(x -> {
+                try {
+                    Runner.shot(x.mc, "perf-ghost-beside-moving");
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            }).until("the move to settle", 3000, 20, x -> !GhostMove.isActive() && renderer().perf$isIdle()
+                    && !((PerfPlacementManager) manager()).perf$hasCopyableChunks()).once(x -> {
+                x.check(manager().getAllSchematicPlacements().contains(q), "the other placement is gone");
+                x.check(sectionsOf(q).equals(qSections), "the other placement's sections changed");
+                removeAllPlacements();
+                // the big schematic reaches above the world's top: its sections up there must go with it too
+                x.check(touchedPlacements().isEmpty(), "removed placements left sections behind: " + touchedPlacements());
+            });
+        }, c -> beside.run(c));
+
+        Seq overlap = new Seq();
+        r.waitFor("perf/ghost-beside/overlapping-placement-takes-the-normal-path", 16000, c -> {
+            removeAllPlacements();
+            resetSettings();
+            long[] builds = {PerfStats.builds()};
+            SchematicPlacement p;
+            try {
+                p = placeBig(c.mc, "selftest-perf-overlap-a");
+                placeBeside(p, 0, "selftest-perf-overlap-b");
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+            long[] movesBefore = new long[1];
+            overlap.until("both placements to be built", 3000, 30, settled(builds)).once(x -> {
+                movesBefore[0] = PerfStats.ghostMoves();
+                net.minecraft.util.math.BlockPos origin = p.getPosition().toVanillaPos();
+                manager().setOrigin(p, new BlockPos(origin.getX(), origin.getY(), origin.getZ() + 5));
+                x.check(GhostMove.isActive() == false, "a placement sharing sections with another one started the smooth move");
+                x.check(PerfStats.ghostMoves() == movesBefore[0], "the move was counted as a smooth move");
+            }).until("the normal rebuild", 3000, 20, x -> renderer().perf$isIdle() && !((PerfPlacementManager) manager()).perf$hasCopyableChunks())
+                    .once(x -> removeAllPlacements());
+        }, c -> overlap.run(c));
+    }
+
     private static Path hugeFile;
     private static CompletableFuture<Optional<LoadedSchematic>> hugeLoad;
 
@@ -679,6 +811,184 @@ final class PerfTests {
             System.out.println("PERF sparse cells=" + container.getTotalVolume() + " sections=" + storage.allocatedSections() + "/" + storage.totalSections());
         }
         c.check(cells == volume, "the loaded volume is " + cells + ", not " + volume);
+    }
+
+    /** Built and idle, and the listed pieces stopped changing (the server sent every chunk in view). */
+    static Runner.Poll viewComplete(long[] buildsBefore) {
+        Runner.Poll built = settled(buildsBefore);
+        int[] last = {-1};
+        return c -> {
+            int listed = renderer().perf$listedRenderers().size();
+            boolean same = listed == last[0];
+            last[0] = listed;
+            return same && built.ready(c);
+        };
+    }
+
+    /** Whether the nearest listed piece with see-through blocks or overlay quads can be re-sorted (holds its copy). */
+    static boolean nearestHasSortCopy(Runner.Context c) {
+        RenderChunkSchematicVbo nearest = null;
+        double best = Double.MAX_VALUE;
+        for (RenderChunkSchematicVbo piece : renderer().perf$listedRenderers()) {
+            CompiledChunkSchematic data = piece.getChunkRenderData();
+            if (data == CompiledChunkSchematic.EMPTY || (data.isLayerEmpty(net.minecraft.util.BlockRenderLayer.TRANSLUCENT)
+                    && data.isOverlayTypeEmpty(RenderChunkSchematicVbo.OverlayRenderType.QUAD))) continue;
+            double d = piece.getPosition().add(8, 8, 8).distanceSq(c.mc.player.posX, c.mc.player.posY, c.mc.player.posZ);
+            if (d < best) {
+                best = d;
+                nearest = piece;
+            }
+        }
+        if (nearest == null) return true;
+        if (nearest.getChunkRenderData().lacksSortCopy()) {
+            // a resort pass happens when the camera moves: nudge it
+            c.mc.player.setPosition(c.mc.player.posX + 0.6, c.mc.player.posY, c.mc.player.posZ);
+            return false;
+        }
+        return true;
+    }
+
+    /** How many client chunks within the render distance are loaded, and where the camera is and looks. */
+    static String loadedAround() {
+        Minecraft mc = Minecraft.getMinecraft();
+        int cx = (int) Math.floor(mc.player.posX) >> 4, cz = (int) Math.floor(mc.player.posZ) >> 4, rd = mc.gameSettings.renderDistanceChunks, loaded = 0;
+        for (int x = cx - rd; x <= cx + rd; x++) {
+            for (int z = cz - rd; z <= cz + rd; z++) {
+                if (!mc.world.getChunkProvider().provideChunk(x, z).isEmpty()) loaded++;
+            }
+        }
+        return "clientChunks=" + loaded + "/" + (2 * rd + 1) * (2 * rd + 1) + " cam=" + (int) mc.player.posX + "," + (int) mc.player.posY + ","
+                + (int) mc.player.posZ + " yaw=" + (int) mc.player.rotationYaw + " pitch=" + (int) mc.player.rotationPitch;
+    }
+
+    /** Bytes of vertex copies the view's chunk renderers keep for re-sorting: block layers, overlays, how many copies, renderers. */
+    static long[] keptVertexBytes() {
+        long[] out = new long[4];
+        try {
+            Object frustum = net.minecraftforge.fml.relauncher.ReflectionHelper.findField(
+                    com.useleess.litematicaupgraded.litematica.render.schematic.RenderGlobalSchematic.class, "viewFrustum").get(renderer());
+            if (frustum == null) return out;
+            net.minecraft.client.renderer.chunk.RenderChunk[] chunks = (net.minecraft.client.renderer.chunk.RenderChunk[])
+                    net.minecraftforge.fml.relauncher.ReflectionHelper.findField(net.minecraft.client.renderer.ViewFrustum.class, "renderChunks", "field_178164_f").get(frustum);
+            for (net.minecraft.client.renderer.chunk.RenderChunk chunk : chunks) {
+                out[3]++;
+                CompiledChunkSchematic data = chunk == null ? null : ((RenderChunkSchematicVbo) chunk).getChunkRenderData();
+                if (data == null) continue;
+                for (net.minecraft.util.BlockRenderLayer layer : net.minecraft.util.BlockRenderLayer.values()) {
+                    net.minecraft.client.renderer.BufferBuilder.State state = data.getBlockBufferState(layer);
+                    if (state != null) { out[0] += 4L * state.getRawBuffer().length; out[2]++; }
+                }
+                for (RenderChunkSchematicVbo.OverlayRenderType type : RenderChunkSchematicVbo.OverlayRenderType.values()) {
+                    net.minecraft.client.renderer.BufferBuilder.State state = data.getOverlayBufferState(type);
+                    if (state != null) { out[1] += 4L * state.getRawBuffer().length; out[2]++; }
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            System.out.println("PERF dense kept unavailable: " + e);
+        }
+        return out;
+    }
+
+    /** Java memory in use after a full collection, in MB, and the classes holding the most of it (#19 diagnosis). */
+    static long reportMemory(String where) {
+        System.gc();
+        Runtime rt = Runtime.getRuntime();
+        long usedMb = (rt.totalMemory() - rt.freeMemory()) >> 20;
+        long[] kept = keptVertexBytes();
+        System.out.println("PERF dense at=" + where + " usedMb=" + usedMb + " maxMb=" + (rt.maxMemory() >> 20)
+                + " pieces=" + renderer().perf$renderedWithData() + " keptBlockMb=" + (kept[0] >> 20) + " keptOverlayMb=" + (kept[1] >> 20)
+                + " keptStates=" + kept[2] + " renderers=" + kept[3] + " listed=" + renderer().perf$listedRenderers().size() + " " + loadedAround());
+        try {
+            Object histogram = java.lang.management.ManagementFactory.getPlatformMBeanServer().invoke(
+                    new javax.management.ObjectName("com.sun.management:type=DiagnosticCommand"), "gcClassHistogram",
+                    new Object[] {new String[0]}, new String[] {String[].class.getName()});
+            String[] lines = String.valueOf(histogram).split("\n");
+            for (int i = 0; i < lines.length; i++) {
+                if (i < 12 || lines[i].contains("litematicaupgraded") || lines[i].contains("BufferBuilder")) System.out.println("PERF dense histo " + lines[i]);
+            }
+        } catch (Exception e) {
+            System.out.println("PERF dense histo unavailable: " + e);
+        }
+        return usedMb;
+    }
+
+    private static CompletableFuture<Optional<LoadedSchematic>> denseLoad;
+
+    /** A schematic as big and packed as the #19 report's (528 x 256 x 528, a third filled with mixed blocks), flown across. */
+    private static void registerDense(Runner.Registry r) {
+        Seq flight = new Seq();
+        boolean[] started = {false};
+        r.waitFor("perf/dense/528-packed-schematic-keeps-only-near-resort-copies", 40000, c -> {
+            removeAllPlacements();
+            resetSettings();
+            reportMemory("start");
+            List<IBlockState> mix = new ArrayList<>();
+            for (EnumFacing f : EnumFacing.HORIZONTALS) mix.add(Blocks.OAK_STAIRS.getDefaultState().withProperty(net.minecraft.block.BlockStairs.FACING, f));
+            mix.add(Blocks.GLASS.getDefaultState());
+            mix.add(Blocks.STAINED_GLASS.getDefaultState());
+            mix.add(Blocks.STONE_SLAB.getDefaultState());
+            mix.add(Blocks.OAK_FENCE.getDefaultState());
+            mix.add(Blocks.COBBLESTONE_WALL.getDefaultState());
+            mix.add(Blocks.IRON_BARS.getDefaultState());
+            mix.add(Blocks.GLASS_PANE.getDefaultState());
+            mix.add(Blocks.LEAVES.getDefaultState());
+            mix.add(Blocks.CARPET.getDefaultState());
+            mix.add(Blocks.STONE.getDefaultState());
+            mix.add(Blocks.PLANKS.getDefaultState());
+            mix.add(Blocks.TORCH.getDefaultState());
+            denseLoad = CompletableFuture.supplyAsync(() -> {
+                try {
+                    Path dir = Paths.get("selftest-tmp").toAbsolutePath();
+                    Files.createDirectories(dir);
+                    Path file = dir.resolve("perf-dense-528.litematic");
+                    LitematicWriter.writeDense(file, 528, 256, 528, mix, 35);
+                    return LoadedSchematic.tryLoadSchematic(file);
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+        }, c -> {
+            if (!started[0]) {
+                if (!denseLoad.isDone()) return false;
+                started[0] = true;
+                Optional<LoadedSchematic> loaded = denseLoad.get();
+                c.check(loaded.isPresent(), "the packed schematic did not load");
+                reportMemory("loaded");
+                c.mc.player.sendChatMessage("/gamemode 1");
+                BlockPos origin = new BlockPos((int) c.mc.player.posX + 6, 0, (int) c.mc.player.posZ + 6);
+                SchematicPlacement p = SchematicPlacement.create(loaded.get(), origin, "selftest-perf-dense", true);
+                manager().addSchematicPlacement(p, false);
+                int[][] stops = {{20, 20}, {140, 20}, {264, 20}, {400, 20}, {508, 20}, {508, 200}, {400, 264}, {264, 264}, {140, 400}, {20, 508}, {264, 508}, {508, 508}};
+                for (int[] stop : stops) {
+                    String where = stop[0] + "," + stop[1];
+                    long[] builds = new long[1];
+                    Runner.Poll complete = viewComplete(builds);
+                    flight.once(x -> {
+                        builds[0] = PerfStats.builds();
+                        x.mc.player.sendChatMessage("/tp @s " + (origin.getX() + stop[0]) + " 140 " + (origin.getZ() + stop[1]) + " -45 20");
+                    }).until("the camera to hover at " + where + ", height 140", 400, 10, x -> {
+                        x.mc.player.capabilities.isFlying = true;
+                        return Math.abs(x.mc.player.posY - 140) < 1 && Math.abs(x.mc.player.posX - (origin.getX() + stop[0] + 0.5)) < 1;
+                    }).until("the view at " + where + " to be complete and built", 6000, 60, c2 -> {
+                        c2.mc.player.capabilities.isFlying = true;
+                        return complete.ready(c2);
+                    }).once(x -> {
+                        reportMemory(where);
+                        if (where.equals("264,264")) {
+                            try { Runner.shot(x.mc, "perf-dense-264"); } catch (Exception e) { throw new IllegalStateException(e); }
+                        }
+                        long[] kept = keptVertexBytes();
+                        x.check(kept[0] + kept[1] < 160L << 20, "the pieces keep " + ((kept[0] + kept[1]) >> 20)
+                                + " MB of re-sort copies at " + where + ", only the near ones should");
+                    }).until("the nearest piece at " + where + " to hold its re-sort copy", 600, 5, x -> nearestHasSortCopy(x));
+                }
+                flight.once(x -> {
+                    removeAllPlacements();
+                    denseLoad = null;
+                }).ticks(100).once(x -> reportMemory("removed"));
+            }
+            return flight.run(c);
+        });
     }
 
     private static void registerSparse(Runner.Registry r) {

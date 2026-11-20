@@ -12,7 +12,7 @@ import com.useleess.litematicaupgraded.malilib.util.data.json.JsonUtils;
 
 public class BaseIcon implements Icon
 {
-    public static final Identifier MALILIB_GUI_WIDGETS_TEXTURE = StringUtils.identifier(MaLiLibReference.MOD_ID, "textures/gui/gui_widgets.png");
+    public static final Identifier MALILIB_GUI_WIDGETS_TEXTURE = StringUtils.identifier(MaLiLibReference.ASSETS_ID, "textures/gui/malilib/gui_widgets.png");
 
     protected final int u;
     protected final int v;

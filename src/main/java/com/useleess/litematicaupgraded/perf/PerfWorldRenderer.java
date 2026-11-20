@@ -10,9 +10,12 @@ public interface PerfWorldRenderer {
     /** True when no schematic chunk is waiting to be built or uploaded. */
     boolean perf$isIdle();
 
-    /** Takes the chunk renderers that hold built buffers out of the renderer (they keep their buffers); fresh ones take their places. Null when there is no renderer yet. */
+    /**
+     * Takes the chunk renderers of these 16-block sections (keys of their corners) that hold built buffers out of the
+     * renderer (they keep their buffers); fresh ones take their places. Null when there is no renderer yet.
+     */
     @Nullable
-    List<RenderChunkSchematicVbo> perf$detachChunkRenderers();
+    List<RenderChunkSchematicVbo> perf$detachChunkRenderers(java.util.Set<Long> sections);
 
     /** Throws the build threads away and makes new ones (the thread count changed). */
     void perf$resetDispatcher();

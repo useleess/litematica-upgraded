@@ -10,6 +10,8 @@ import net.minecraft.block.Block;
 import net.minecraft.block.properties.IProperty;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 
 public final class StateMatch {
     /** Properties the world makes (power, neighbours) or a click cycles (delay, mode): never part of a placement. */
@@ -49,6 +51,14 @@ public final class StateMatch {
     /** Whether a placed (or simulated) state is the schematic state as far as a placement decides it. */
     public static boolean placedMatches(IBlockState placed, IBlockState target) {
         return same(placed, target, RUNTIME);
+    }
+
+    /**
+     * The world block with what it shows from its neighbours: a door's upper part keeps its facing and open state only in
+     * the lower part, a tall plant's upper part its kind; schematics hold these full states.
+     */
+    public static IBlockState worldState(IBlockAccess world, BlockPos pos) {
+        return world.getBlockState(pos).getActualState(world, pos);
     }
 
     /** Whether the world block is built as the schematic wants it, as far as placing and clicking can tell. */

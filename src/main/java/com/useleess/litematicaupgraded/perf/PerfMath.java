@@ -13,7 +13,25 @@ public final class PerfMath {
     /** Bytes per vertex of Minecraft's block format (position 3 floats, colour, uv, light uv). */
     public static final int BLOCK_VERTEX_BYTES = 28;
 
+    /**
+     * A piece keeps the copy of its see-through vertices (needed to re-sort them as the camera moves; only the nearest
+     * pieces are ever re-sorted) while its centre is this near the camera (blocks) ...
+     */
+    public static final double SORT_COPY_KEEP = 48.0;
+    /** ... and drops it past this distance: every piece kept one, so a big packed schematic filled gigabytes (#19). */
+    public static final double SORT_COPY_DROP = 64.0;
+
     private PerfMath() {}
+
+    /** Whether a piece whose centre is this far (squared, blocks) from the camera keeps its re-sort copy. */
+    public static boolean keepsSortCopy(double distSq) {
+        return distSq <= SORT_COPY_KEEP * SORT_COPY_KEEP;
+    }
+
+    /** Whether a piece this far (squared, blocks) from the camera drops a re-sort copy it holds. */
+    public static boolean dropsSortCopy(double distSq) {
+        return distSq > SORT_COPY_DROP * SORT_COPY_DROP;
+    }
 
     /**
      * Build workers: CPU cores - 1, at least 1, so one core is always left for the game; never more than Litematica's own

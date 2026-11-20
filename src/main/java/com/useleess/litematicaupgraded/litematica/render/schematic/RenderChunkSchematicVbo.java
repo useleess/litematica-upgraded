@@ -31,6 +31,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
 
 import com.useleess.litematicaupgraded.malilib.render.ShapeRenderUtils;
+import com.useleess.litematicaupgraded.perf.PerfMath;
 import com.useleess.litematicaupgraded.malilib.render.buffer.VertexBuilder;
 import com.useleess.litematicaupgraded.malilib.util.MathUtils;
 import com.useleess.litematicaupgraded.malilib.util.data.Color4f;
@@ -677,10 +678,34 @@ public class RenderChunkSchematicVbo extends RenderChunk
         if (layer == BlockRenderLayer.TRANSLUCENT && compiledChunk.isLayerEmpty(layer) == false)
         {
             builder.sortVertexData(x, y, z);
-            compiledChunk.setBlockBufferState(layer, builder.getVertexData());
+
+            if (this.keepsSortCopy(x, y, z))
+            {
+                compiledChunk.setBlockBufferState(layer, builder.getVertexData());
+            }
         }
 
         builder.finishDrawing();
+        compiledChunk.setBuiltBytes(layer, builder.getByteBuffer().limit());
+    }
+
+    /** Whether this piece's centre is near enough to the camera at x, y, z to keep its re-sort copy (#19). */
+    public boolean keepsSortCopy(double x, double y, double z)
+    {
+        return PerfMath.keepsSortCopy(this.distanceSq(x, y, z));
+    }
+
+    /** Whether this piece is far enough from the camera to drop a re-sort copy it holds. */
+    public boolean dropsSortCopy(double x, double y, double z)
+    {
+        return PerfMath.dropsSortCopy(this.distanceSq(x, y, z));
+    }
+
+    private double distanceSq(double x, double y, double z)
+    {
+        net.minecraft.util.math.BlockPos pos = this.getPosition();
+        double dx = pos.getX() + 8 - x, dy = pos.getY() + 8 - y, dz = pos.getZ() + 8 - z;
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private void preRenderOverlay(VertexBuilder builder, OverlayRenderType type)
@@ -699,10 +724,15 @@ public class RenderChunkSchematicVbo extends RenderChunk
         if (type == OverlayRenderType.QUAD && compiledChunk.isOverlayTypeEmpty(type) == false)
         {
             builder.sortVertexData(x, y, z);
-            compiledChunk.setOverlayBufferState(type, builder.getVertexData());
+
+            if (this.keepsSortCopy(x, y, z))
+            {
+                compiledChunk.setOverlayBufferState(type, builder.getVertexData());
+            }
         }
 
         builder.finishDrawing();
+        compiledChunk.setBuiltBytes(type, builder.getByteBuffer().limit());
     }
 
     public ChunkCompileTaskGeneratorSchematic makeCompileTaskChunkSchematic()

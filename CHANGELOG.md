@@ -1,5 +1,36 @@
 # Litematica Upgraded changelog
 
+## 0.3.0 (beta) - 2026-11-20
+
+### Added
+- Schematic Edit mode keeps block states when replacing (#14): swapping a block for another (replace in a direction or
+  replace all identical) keeps how it was turned and set - facing, open / closed, top / bottom half, door hinge, log
+  axis, sign rotation, repeater delay - so swapping materials no longer resets every door, gate and stair. The material
+  itself (wood type, colour) is still the one you hold. A door or tall plant swaps both halves at once.
+- Shulker Restock Amount setting (#18, Printer tab): when the printer or Easy Place takes a missing block out of a
+  shulker box in your inventory, it takes a full stack (as before), half a stack, or a single item at a time, so your
+  inventory doesn't fill up with part stacks.
+
+### Fixed
+- Out of memory with big schematics (#19): every 16-block piece of a shown schematic kept a full copy of its see-through
+  blocks and colour overlay for re-sorting, though only the nearest pieces are ever re-sorted. A big, packed schematic
+  filled gigabytes that way (1.4 GB at view distance 6 in our test, far more at higher view distances). Now only pieces
+  within 48 blocks keep one; a 528 x 256 x 528 schematic a third full now stays around 0.3 GB while flying across it.
+- Cauldrons (#16): with the server part (LU on the server, or Useleess Carpet), Easy Place and the printer put cauldrons
+  down empty again instead of full of water. The server now never fills in a block's contents or amount from the
+  schematic (water, snow layers, cake bites, sapling growth), only what a player chooses by placing.
+- Doors (#13): the printer no longer breaks a door's upper half with "break wrong blocks" / "break wrong state" on, and
+  places doors facing the schematic's way. Easy Place aimed at either half builds the whole door from its lower half,
+  facing the right way, without a ghost item. Tall plants (sunflowers, tall grass) are built from their lower half too.
+- Smooth moving with several schematics shown (#15): moving one keeps the whole schematic visible and smooth, and the
+  others stay in place, as long as they don't share a 16-block section with the moved one (schematics that overlap
+  still move the normal way).
+- A schematic reaching above the world's top no longer leaves invisible leftovers behind after it is moved or removed
+  (they could stop the smooth move of another schematic).
+- Broken button pictures (#12) with masa's LiteLoader malilib or Litematica installed: their pictures share our
+  old file paths and replaced ours. Our pictures now live in our own folder (`assets/litematica_upgraded/textures/gui/`;
+  resource packs that changed them need the new path).
+
 ## 0.2.5 (beta) - 2026-11-04
 
 - The printer places blocks in mid-air with nothing around them, on any server, the way Easy Place does, in their exact state (for example an upside-down stair with only the floor nearby). Sand and gravel still wait for something under them, and the Easy Place Click Adjacent setting turns this off for servers that refuse clicks on empty space.

@@ -59,7 +59,7 @@ public final class ManualMining {
         BlockPos pos = event.getPos();
         IBlockState wanted = schematic.getBlockState(pos);
         IBlockState real = event.getWorld().getBlockState(pos);
-        watched.put(pos.toImmutable(), new Watch(real, !wanted.getBlock().isAir(wanted, schematic, pos) && StateMatch.built(real, wanted)));
+        watched.put(pos.toImmutable(), new Watch(real, !wanted.getBlock().isAir(wanted, schematic, pos) && StateMatch.built(StateMatch.worldState(event.getWorld(), pos), wanted)));
     }
 
     /** Called every client tick before the printer: notices hand mining and the blocks it broke. */

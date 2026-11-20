@@ -24,6 +24,7 @@ import com.useleess.litematicaupgraded.malilib.util.data.WrapperIntStorage;
 import com.useleess.litematicaupgraded.malilib.util.game.wrap.RenderWrap;
 import com.useleess.litematicaupgraded.malilib.util.game.wrap.RenderWrap.BlendDestFactor;
 import com.useleess.litematicaupgraded.malilib.util.game.wrap.RenderWrap.BlendSourceFactor;
+import com.useleess.litematicaupgraded.malilib.MaLiLibReference;
 
 public class ColorEditorWidgetHsv extends ContainerWidget
 {
@@ -309,7 +310,7 @@ public class ColorEditorWidgetHsv extends ContainerWidget
 
     public static class SvSelectorWidget extends InteractableWidget
     {
-        protected static final ShaderProgram SHADER_HUE = new ShaderProgram("malilib", null, "shaders/sv_selector.frag");
+        protected static final ShaderProgram SHADER_HUE = new ShaderProgram(MaLiLibReference.ASSETS_ID, null, "shaders/malilib/sv_selector.frag");
 
         protected final FloatStorage saturation;
         protected final FloatStorage value;

@@ -49,6 +49,7 @@ import com.useleess.litematicaupgraded.litematica.tool.ToolMode;
 import com.useleess.litematicaupgraded.litematica.util.RayTraceUtils;
 import com.useleess.litematicaupgraded.litematica.util.RayTraceUtils.RayTraceWrapper;
 import com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler;
+import com.useleess.litematicaupgraded.materials.ReplaceRules;
 import com.useleess.litematicaupgraded.litematica.world.WorldSchematic;
 
 public class SchematicEditUtils
@@ -148,11 +149,18 @@ public class SchematicEditUtils
                 direction = direction.getOpposite();
             }
 
-            BlockPos posEnd = getReplacementBoxEndPos(info.pos, direction);
-            return setSchematicBlockStates(info.pos, posEnd, info.stateNew);
+            return replaceInDirection(info.pos, direction, info.stateNew);
         }
 
         return false;
+    }
+
+    /** Replaces the run of identical blocks from pos towards direction; they keep how they were turned and set (#14). */
+    public static boolean replaceInDirection(BlockPos pos, Direction direction, IBlockState stateNew)
+    {
+        IBlockState stateOriginal = SchematicWorldHandler.getSchematicWorld().getBlockState(pos);
+        BlockPos posEnd = getReplacementBoxEndPos(pos, direction);
+        return setSchematicBlockStates(pos, posEnd, ReplaceRules.keepingSetup(stateOriginal, stateNew));
     }
 
     private static boolean replaceAllIdenticalSchematicBlocks()
@@ -162,10 +170,17 @@ public class SchematicEditUtils
         // The state can be null in 1.13+
         if (info != null && info.stateNew != null)
         {
-            return setAllIdenticalSchematicBlockStates(info.pos, info.stateOriginal, info.stateNew);
+            return replaceAllIdentical(info.pos, info.stateNew);
         }
 
         return false;
+    }
+
+    /** Replaces every block identical to the one at pos; they keep how they were turned and set (#14). */
+    public static boolean replaceAllIdentical(BlockPos pos, IBlockState stateNew)
+    {
+        IBlockState stateOriginal = SchematicWorldHandler.getSchematicWorld().getBlockState(pos);
+        return setAllIdenticalSchematicBlockStates(pos, stateOriginal, ReplaceRules.keepingSetup(stateOriginal, stateNew));
     }
 
     public static boolean rebuildAcceptReplacement()
@@ -505,6 +520,7 @@ public class SchematicEditUtils
                                         totalBlocks += increment;
 
                                         container.setBlockState(x, y, z, newState);
+                                        totalBlocks += replaceOtherHalf(container, x, y, z, stateOriginal, newState);
                                     }
                                 }
                             }
@@ -663,6 +679,7 @@ public class SchematicEditUtils
                         {
                             container.setBlockState(x, y, z, stateNew);
                             totalBlocks += increment;
+                            totalBlocks += replaceOtherHalf(container, x, y, z, stateOriginal, stateNew);
                         }
                     }
                 }
@@ -675,6 +692,40 @@ public class SchematicEditUtils
         loadedSchematic.setModifiedSinceSaved();
 
         return true;
+    }
+
+    /**
+     * A door or tall plant half at x, y, z was changed from before to after: its other half becomes after's other half
+     * (keeping how it was set), or air when after has none. Returns the change in the block count.
+     */
+    private static long replaceOtherHalf(BlockContainer container, int x, int y, int z, BlockState before, BlockState after)
+    {
+        IBlockState stateBefore = before.vanillaState();
+        int dy = ReplaceRules.otherHalfDy(stateBefore);
+        int otherY = y + dy;
+
+        if (dy == 0 || stateBefore == after.vanillaState() || otherY < 0 || otherY >= container.getSize().getY())
+        {
+            return 0;
+        }
+
+        IBlockState other = container.getBlockState(x, otherY, z).vanillaState();
+
+        if (other.getBlock() != stateBefore.getBlock() || ReplaceRules.otherHalfDy(other) != -dy)
+        {
+            return 0;
+        }
+
+        IBlockState otherAfter = ReplaceRules.otherHalf(after.vanillaState());
+
+        if (otherAfter == null)
+        {
+            container.setBlockState(x, otherY, z, BlockState.AIR);
+            return -1;
+        }
+
+        container.setBlockState(x, otherY, z, BlockState.of(ReplaceRules.keepingSetup(other, otherAfter)));
+        return 0;
     }
 
     private static class ReplacementInfo

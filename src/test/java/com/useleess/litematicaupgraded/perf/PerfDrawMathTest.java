@@ -51,6 +51,16 @@ public class PerfDrawMathTest {
         assertTrue(PerfMath.fitsBudget(50, 0, 50));
     }
 
+    @Test public void onlyNearPiecesKeepTheirResortCopy() {
+        assertTrue(PerfMath.keepsSortCopy(0));
+        assertTrue(PerfMath.keepsSortCopy(48 * 48));
+        assertFalse(PerfMath.keepsSortCopy(49 * 49));
+        // between keeping and dropping a copy stays as it is, so a piece at the edge is not built again and again
+        assertFalse(PerfMath.dropsSortCopy(60 * 60));
+        assertTrue(PerfMath.dropsSortCopy(65 * 65));
+        assertTrue(PerfMath.SORT_COPY_DROP > PerfMath.SORT_COPY_KEEP);
+    }
+
     @Test public void resortOnlyAfterARealDistanceAndNotEveryFrame() {
         long later = PerfMath.RESORT_MIN_NANOS;
         assertFalse(PerfMath.shouldResort(1.5 * 1.5, later));       // stock would re-sort (> 1 block), the lazy rule not yet

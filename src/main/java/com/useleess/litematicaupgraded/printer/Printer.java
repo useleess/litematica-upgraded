@@ -169,7 +169,7 @@ public final class Printer {
             BlockPos pos = new BlockPos(x, y, z);
             if (cooldowns.containsKey(key(pos)) || !world.isBlockLoaded(pos) || ManualMining.skipped(pos) || !PrinterArea.allowed(x, y, z)) continue;
             IBlockState target = schematic.getBlockState(pos);
-            IBlockState real = world.getBlockState(pos);
+            IBlockState real = StateMatch.worldState(world, pos);
             if (target.getBlock().isAir(target, schematic, pos)) {
                 // an extra block: only inside a placement, where the schematic has air on purpose
                 if (mine == null && breakExtra && distance <= mineRange * mineRange && PrinterArea.insidePlacement(x, y, z) && breakWanted(world, schematic, pos, true, false, false)) mine = pos;
@@ -219,6 +219,7 @@ public final class Printer {
                 if (mine == null && distance <= mineRange * mineRange && breakWanted(world, schematic, pos, breakExtra, breakWrong, breakWrongState)) mine = pos;
                 continue;
             }
+            if (TwoBlockParts.isUpperPart(target)) continue;
             candidates.add(new Candidate(pos, target, tier, Kind.PLACE, 0));
         }
         if (mine != null && beginMining(world, mine, mineNoSilk)) {
@@ -449,7 +450,7 @@ public final class Printer {
      */
     boolean breakWanted(World world, World schematic, BlockPos pos, boolean extra, boolean wrong, boolean wrongState) {
         if (!extra && !wrong && !wrongState) return false;
-        IBlockState real = world.getBlockState(pos);
+        IBlockState real = StateMatch.worldState(world, pos);
         if (real.getBlock().isAir(real, world, pos) || FluidPrinter.isFluid(real.getBlock()) || real.getBlockHardness(world, pos) < 0) return false;
         // scaffolds are only mined once their gate stands
         if (world == scaffoldWorld && scaffolds.contains(pos)) return false;

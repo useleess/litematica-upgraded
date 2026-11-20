@@ -11,6 +11,7 @@ import com.useleess.litematicaupgraded.malilib.config.option.BooleanConfig;
 import com.useleess.litematicaupgraded.malilib.config.option.ConfigOption;
 import com.useleess.litematicaupgraded.malilib.config.option.HotkeyedBooleanConfig;
 import com.useleess.litematicaupgraded.malilib.config.option.IntegerConfig;
+import com.useleess.litematicaupgraded.malilib.config.option.OptionConfig;
 import com.useleess.litematicaupgraded.malilib.config.option.StringConfig;
 import com.useleess.litematicaupgraded.malilib.input.Hotkey;
 import com.useleess.litematicaupgraded.malilib.util.data.ModInfo;
@@ -40,6 +41,7 @@ public final class PrinterConfigs {
     public static final BooleanConfig USE_TOOLS = new BooleanConfig("printerUseTools", true);
     public static final BooleanConfig SCAFFOLD = new BooleanConfig("printerScaffold", true);
     public static final BooleanConfig FILL_CONTAINERS = new BooleanConfig("printerFillContainers", false);
+    public static final OptionConfig<RestockAmount> SHULKER_RESTOCK_AMOUNT = new OptionConfig<>("shulkerRestockAmount", RestockAmount.FULL_STACK, RestockAmount.VALUES);
     public static final HotkeyedBooleanConfig CONTAINER_GRAB = new HotkeyedBooleanConfig("containerGrab", false, "");
     public static final IntegerConfig CONTAINER_GRAB_CLICK_TICKS = new IntegerConfig("containerGrabClickTicks", 1, 1, 40);
     public static final BooleanConfig FLUIDS = new BooleanConfig("printerFluids", true);
@@ -73,6 +75,7 @@ public final class PrinterConfigs {
             USE_TOOLS,
             SCAFFOLD,
             FILL_CONTAINERS,
+            SHULKER_RESTOCK_AMOUNT,
             CONTAINER_GRAB,
             CONTAINER_GRAB_CLICK_TICKS,
             FLUIDS,

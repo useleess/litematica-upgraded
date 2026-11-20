@@ -52,6 +52,7 @@ import com.useleess.litematicaupgraded.litematica.config.Hotkeys;
 import com.useleess.litematicaupgraded.litematica.data.DataManager;
 import com.useleess.litematicaupgraded.litematica.materials.MaterialCache;
 import com.useleess.litematicaupgraded.litematica.schematic.placement.SchematicPlacementManager;
+import com.useleess.litematicaupgraded.printer.TwoBlockParts;
 import com.useleess.litematicaupgraded.litematica.tool.ToolMode;
 import com.useleess.litematicaupgraded.litematica.util.RayTraceUtils.RayTraceWrapper;
 import com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler;
@@ -416,8 +417,15 @@ public class EasyPlaceUtils
             return EnumActionResult.PASS;
         }
 
-        final BlockPos targetBlockPos = targetPosition.getBlockPos();
         World schematicWorld = SchematicWorldHandler.getSchematicWorld();
+
+        // a door's or tall plant's upper part: its item is placed one block lower and makes both parts
+        if (TwoBlockParts.isUpperPart(schematicWorld.getBlockState(targetPosition.getBlockPos())))
+        {
+            targetPosition = HitPosition.of(targetPosition.getBlockPos().down(), targetPosition.getExactPos().add(0, -1, 0), targetPosition.getSide());
+        }
+
+        final BlockPos targetBlockPos = targetPosition.getBlockPos();
         IBlockState stateSchematic = schematicWorld.getBlockState(targetBlockPos);
         IBlockState stateClient = world.getBlockState(targetBlockPos).getActualState(world, targetBlockPos);
         ItemStack requiredStack = MaterialCache.getInstance().getRequiredBuildItemForState(BlockState.of(stateSchematic));

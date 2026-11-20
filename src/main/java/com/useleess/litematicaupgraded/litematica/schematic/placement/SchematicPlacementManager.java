@@ -958,8 +958,9 @@ public class SchematicPlacementManager
                 for (Map.Entry<String, IntBoundingBox> entry : boxMap.entrySet())
                 {
                     IntBoundingBox bbOrig = entry.getValue();
-                    final int startCY = (bbOrig.minY >> 4);
-                    final int endCY = (bbOrig.maxY >> 4);
+                    // only the world's 16 sections: the removal above clears just those, so a part above the top stayed forever
+                    final int startCY = Math.max(0, bbOrig.minY >> 4);
+                    final int endCY = Math.min(15, bbOrig.maxY >> 4);
 
                     for (int cy = startCY; cy <= endCY; ++cy)
                     {

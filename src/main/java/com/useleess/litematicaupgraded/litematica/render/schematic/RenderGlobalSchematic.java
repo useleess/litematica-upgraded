@@ -99,6 +99,9 @@ public class RenderGlobalSchematic extends RenderGlobal
     private double prevRenderSortX;
     private double prevRenderSortY;
     private double prevRenderSortZ;
+    private double lastSortCopyDropX = Double.NaN;
+    private double lastSortCopyDropY = Double.NaN;
+    private double lastSortCopyDropZ = Double.NaN;
     private boolean displayListEntitiesDirty = true;
 
     public RenderGlobalSchematic(Minecraft mc)
@@ -495,6 +498,34 @@ public class RenderGlobalSchematic extends RenderGlobal
         }
     }
 
+    /**
+     * Pieces far from the camera let go of their re-sort copies, checked each time the camera moved 16 blocks: only the
+     * nearest pieces are re-sorted, and every piece holding one filled gigabytes with a big packed schematic (#19).
+     */
+    private void dropFarSortCopies(double x, double y, double z)
+    {
+        double dx = x - this.lastSortCopyDropX, dy = y - this.lastSortCopyDropY, dz = z - this.lastSortCopyDropZ;
+
+        if (this.viewFrustum == null || dx * dx + dy * dy + dz * dz < 256.0D)
+        {
+            return;
+        }
+
+        this.lastSortCopyDropX = x;
+        this.lastSortCopyDropY = y;
+        this.lastSortCopyDropZ = z;
+
+        for (RenderChunk chunk : this.viewFrustum.renderChunks)
+        {
+            RenderChunkSchematicVbo renderChunk = (RenderChunkSchematicVbo) chunk;
+
+            if (renderChunk.dropsSortCopy(x, y, z))
+            {
+                renderChunk.getChunkRenderData().dropSortCopies();
+            }
+        }
+    }
+
     public int renderBlockLayer(BlockRenderLayer blockLayerIn, double partialTicks, Entity entityIn)
     {
         GameWrap.profilerPush("render_block_layer_" + blockLayerIn);
@@ -523,9 +554,22 @@ public class RenderGlobalSchematic extends RenderGlobal
                     if ((renderChunk.getChunkRenderData().isLayerStarted(blockLayerIn) ||
                         (renderChunk.getChunkRenderData() != CompiledChunk.DUMMY && renderChunk.hasOverlay())) && i++ < 15)
                     {
-                        this.renderDispatcher.updateTransparencyLater(renderChunk);
+                        // built while far away, it kept no copy to re-sort: built again (sorted) once it is near
+                        if (renderChunk.getChunkRenderData().lacksSortCopy())
+                        {
+                            if (renderChunk.keepsSortCopy(entityX, entityY, entityZ))
+                            {
+                                this.renderDispatcher.updateChunkLater(renderChunk);
+                            }
+                        }
+                        else
+                        {
+                            this.renderDispatcher.updateTransparencyLater(renderChunk);
+                        }
                     }
                 }
+
+                this.dropFarSortCopies(entityX, entityY, entityZ);
             }
 
             GameWrap.profilerPop();

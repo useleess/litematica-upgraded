@@ -66,7 +66,7 @@ final class Scenario {
 
     BlockPos origin;
     private SchematicPlacement placement;
-    private int ticks, readyTick = -1, okTicks;
+    private int ticks, readyTick = -1, okTicks, clearTries;
     private String lastProblem = "never checked";
 
     Scenario(String id) {
@@ -107,16 +107,10 @@ final class Scenario {
         command(mc, "clear @s");
         // items dropped by an earlier test on this site (a hopper would suck them up)
         command(mc, "kill @e[type=item,x=" + sx + ",y=101,z=" + sz + ",r=20]");
-        command(mc, "fill " + (sx - 6) + " 101 " + (sz - 6) + " " + (sx + 10) + " 115 " + (sz + 10) + " air");
-        command(mc, "fill " + (sx - 6) + " 100 " + (sz - 6) + " " + (sx + 10) + " 100 " + (sz + 10) + " stone");
+        buildSite(mc);
         command(mc, "tp @s " + (sx + standX) + " 101 " + (sz + standZ) + " " + yaw + " " + pitch);
-        for (Map.Entry<BlockPos, IBlockState> e : preplaced.entrySet()) {
-            BlockPos p = world(e.getKey());
-            command(mc, "setblock " + p.getX() + " " + p.getY() + " " + p.getZ() + " "
-                    + net.minecraft.block.Block.REGISTRY.getNameForObject(e.getValue().getBlock()) + " " + e.getValue().getBlock().getMetaFromState(e.getValue()));
-        }
         if (give) giveItems(mc);
-        for (String text : extraCommands) command(mc, text);
+        for (String text : extraCommands) if (text.startsWith("give ")) command(mc, text);
         Path dir = Paths.get("selftest-tmp").toAbsolutePath();
         Files.createDirectories(dir);
         Path file = dir.resolve(id.replace('/', '-') + ".litematic");
@@ -124,6 +118,22 @@ final class Scenario {
         LoadedSchematic loaded = LoadedSchematic.tryLoadSchematic(file).orElseThrow(() -> new IllegalStateException("cannot load the test schematic"));
         placement = SchematicPlacement.create(loaded, new com.useleess.litematicaupgraded.malilib.util.position.BlockPos(sx, 101, sz), "selftest-" + id, true);
         DataManager.getSchematicPlacementManager().addSchematicPlacement(placement, false);
+    }
+
+    /**
+     * Empties the site, lays its stone floor, puts the pre-placed blocks and runs the test's own block commands (all
+     * refused while the site's chunks are not loaded, e.g. right after a respawn far away: then done again).
+     */
+    private void buildSite(Minecraft mc) {
+        int sx = origin.getX(), sz = origin.getZ();
+        command(mc, "fill " + (sx - 6) + " 101 " + (sz - 6) + " " + (sx + 10) + " 115 " + (sz + 10) + " air");
+        command(mc, "fill " + (sx - 6) + " 100 " + (sz - 6) + " " + (sx + 10) + " 100 " + (sz + 10) + " stone");
+        for (Map.Entry<BlockPos, IBlockState> e : preplaced.entrySet()) {
+            BlockPos p = world(e.getKey());
+            command(mc, "setblock " + p.getX() + " " + p.getY() + " " + p.getZ() + " "
+                    + net.minecraft.block.Block.REGISTRY.getNameForObject(e.getValue().getBlock()) + " " + e.getValue().getBlock().getMetaFromState(e.getValue()));
+        }
+        for (String text : extraCommands) if (!text.startsWith("give ")) command(mc, text);
     }
 
     /** The test's placement (null once the test is over). */
@@ -210,6 +220,7 @@ final class Scenario {
         PrinterConfigs.USE_TOOLS.setBooleanValue(true);
         PrinterConfigs.SCAFFOLD.setBooleanValue(true);
         PrinterConfigs.FILL_CONTAINERS.setBooleanValue(false);
+        PrinterConfigs.SHULKER_RESTOCK_AMOUNT.setValue(com.useleess.litematicaupgraded.printer.RestockAmount.FULL_STACK);
         com.useleess.litematicaupgraded.litematica.config.Configs.Generic.EASY_PLACE_MODE.setBooleanValue(false);
         PrinterConfigs.CONTAINER_GRAB.setBooleanValue(false);
         PrinterConfigs.FLUIDS.setBooleanValue(true);
@@ -232,7 +243,11 @@ final class Scenario {
         if (!mc.world.getBlockState(origin.down()).getBlock().getRegistryName().toString().equals("minecraft:stone")) return "the platform is not there yet";
         // a site is reused: the client gets the cleared blocks after the teleport, and checks remember what they saw
         for (BlockPos rel : build.keySet()) {
-            if (!preplaced.containsKey(rel) && !mc.world.isAirBlock(world(rel))) return "the block of an earlier test is still at " + rel;
+            if (!preplaced.containsKey(rel) && !mc.world.isAirBlock(world(rel))) {
+                // the first clearing can be refused (the site was not loaded yet): cleared again now the player stands here
+                if (++clearTries % 20 == 1) buildSite(mc);
+                return "the block of an earlier test is still at " + rel;
+            }
         }
         for (Map.Entry<BlockPos, IBlockState> e : preplaced.entrySet()) {
             if (!StateMatch.placedMatches(mc.world.getBlockState(world(e.getKey())), e.getValue())) return "a pre-placed block is not there yet at " + e.getKey();
@@ -263,7 +278,7 @@ final class Scenario {
 
     /** What differs at a relative position, or null. */
     String mismatch(Runner.Context c, BlockPos rel, IBlockState target) {
-        IBlockState real = c.mc.world.getBlockState(world(rel));
+        IBlockState real = StateMatch.worldState(c.mc.world, world(rel));
         if (!StateMatch.placedMatches(real, target)) return rel + " is " + real + ", wanted " + target;
         int clicks = StateClicks.clicks(real, target);
         if (clicks > 0) return rel + " still needs " + clicks + " clicks: " + real + " vs " + target;

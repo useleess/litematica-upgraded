@@ -38,7 +38,7 @@ import com.useleess.litematicaupgraded.server.net.MessagePlacementIntent;
  * Applies the state a client asked for to the block its placement creates: every property the player could give it by
  * placing and clicking (facing, half, axis, shape, delay, mode, hinge, open, rotation, a lever's switch...). What the
  * world decides stays as vanilla placed it: power (redstone parts start unpowered and the world powers them), growth,
- * neighbours, contents, the block's kind (variant, colour), and the open state of iron doors and trapdoors (only
+ * neighbours, contents and amounts (a cauldron's water, snow layers, cake bites: #16), the block's kind (variant, colour), and the open state of iron doors and trapdoors (only
  * redstone opens them). The block must also drop the same items as before.
  */
 public final class AccuratePlacement {
@@ -49,7 +49,8 @@ public final class AccuratePlacement {
     static final Set<String> WORLD_MADE = new HashSet<>(Arrays.asList(
         "powered", "power", "triggered", "extended", "enabled", "locked", "attached", "disarmed", "occupied", "part", "short",
         "check_decay", "decayable", "snowy", "age", "conditional", "has_bottle_0", "has_bottle_1", "has_bottle_2", "contents",
-        "eye", "explode", "nodrop", "has_record", "variant", "type", "color", "wet", "damage", "seamless", "legacy_data"));
+        "eye", "explode", "nodrop", "has_record", "variant", "type", "color", "wet", "damage", "seamless", "legacy_data",
+        "level", "layers", "bites", "moisture", "stage"));
 
     private static final class Intent {
         final String state;

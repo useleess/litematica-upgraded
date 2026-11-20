@@ -33,6 +33,8 @@ public final class ServerAssist {
     static final long RETRY_MILLIS = 1000;
     private static final Map<BlockPos, Long> airPending = new HashMap<>();
     private static final Map<String, Long> shulkerPending = new HashMap<>();
+    /** How many of the item the boxes held when it was asked for: fewer now = that take arrived. */
+    private static final Map<String, Integer> shulkerAskedAt = new HashMap<>();
 
     /** The requests sent so far (for tests). */
     public static volatile int intentsSent, airSent, shulkerSent;
@@ -80,20 +82,26 @@ public final class ServerAssist {
     // ---- shulker restock ----
 
     /**
-     * When the printer lacks an item that a shulker box in the inventory holds, the server is asked to move a stack of it
-     * out of the box; the item arrives with the server's inventory update and is used on a later pass. True when a request
+     * When the printer lacks an item that a shulker box in the inventory holds, the server is asked to move some of it
+     * out of the box (a full stack, half a stack or one item: the "Shulker Restock Amount" setting, #18); the item arrives with the server's inventory update and is used on a later pass. True when a request
      * is sent or still pending.
      */
     public static boolean restock(EntityPlayerSP player, ItemStack wanted) {
         if (!ServerFeatures.shulkerRestock || player == null || wanted.isEmpty() || player.openContainer != player.inventoryContainer) return false;
         String key = Item.getIdFromItem(wanted.getItem()) + ":" + wanted.getMetadata();
         expire(shulkerPending.values());
+        int inBoxes = inBoxes(player.inventory.mainInventory, wanted);
+        // the last take arrived (and was used): ask again at once, not after the retry time
+        Integer askedAt = shulkerAskedAt.get(key);
+        if (askedAt != null && inBoxes < askedAt) shulkerPending.remove(key);
         if (shulkerPending.containsKey(key)) return true;
         if (!hasRoom(player, wanted)) return false;
         int[] found = find(player.inventory.mainInventory, wanted);
         if (found == null) return false;
-        Net.CHANNEL.sendToServer(new MessageShulkerTake(found[0], found[1], Item.getIdFromItem(wanted.getItem()), wanted.getMetadata(), wanted.getMaxStackSize()));
+        int count = PrinterConfigs.SHULKER_RESTOCK_AMOUNT.getValue().count(wanted.getMaxStackSize());
+        Net.CHANNEL.sendToServer(new MessageShulkerTake(found[0], found[1], Item.getIdFromItem(wanted.getItem()), wanted.getMetadata(), count));
         shulkerPending.put(key, System.currentTimeMillis());
+        shulkerAskedAt.put(key, inBoxes);
         shulkerSent++;
         return true;
     }
@@ -105,6 +113,18 @@ public final class ServerAssist {
             if (stack.isItemEqual(wanted) && ItemStack.areItemStackTagsEqual(stack, wanted) && stack.getCount() < stack.getMaxStackSize()) return true;
         }
         return false;
+    }
+
+    /** How many of the item the shulker boxes in the inventory hold together. */
+    static int inBoxes(NonNullList<ItemStack> inventory, ItemStack wanted) {
+        int total = 0;
+        for (ItemStack box : inventory) {
+            if (!ShulkerRestock.isBox(box)) continue;
+            for (ItemStack stack : ShulkerRestock.contents(box)) {
+                if (!stack.isEmpty() && stack.isItemEqual(wanted)) total += stack.getCount();
+            }
+        }
+        return total;
     }
 
     /** The inventory slot of a box holding the item and the box slot with the most of it, or null. */

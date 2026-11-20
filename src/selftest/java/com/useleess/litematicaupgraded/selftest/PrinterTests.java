@@ -9,6 +9,8 @@ import java.util.Map;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockDirectional;
+import net.minecraft.block.BlockDoor;
+import net.minecraft.block.BlockDoublePlant;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.BlockLever;
@@ -71,8 +73,11 @@ final class PrinterTests {
     }
 
     private static int count(Runner.Context c, Block block) {
+        return count(c, Item.getItemFromBlock(block));
+    }
+
+    private static int count(Runner.Context c, Item item) {
         int total = 0;
-        Item item = Item.getItemFromBlock(block);
         for (ItemStack stack : c.mc.player.inventory.mainInventory) if (stack.getItem() == item) total += stack.getCount();
         return total;
     }
@@ -326,6 +331,27 @@ final class PrinterTests {
         closed.put(new BlockPos(1, 0, 0), STONE);
         closed.put(new BlockPos(0, 0, 0), trapdoorOpen.withProperty(BlockTrapDoor.OPEN, false));
         easyPlace(r, "state/opens-a-built-closed-trapdoor", trapdoorOpen, closed);
+
+        // doors (#13): the item places the lower part and the upper part comes with it; the upper part shows its facing
+        // only through the lower part, so it must never count as wrong and be mined
+        for (String half : new String[] {"lower", "upper"}) {
+            Scenario s = door(new Scenario("easyplace/door/aimed-at-" + half + "-half"), EnumFacing.EAST, 0, 0);
+            easyPlaceAt(r, s, new BlockPos(0, "upper".equals(half) ? 1 : 0, 0));
+        }
+        Scenario doorBreak = door(new Scenario("printer/door/upper-half-kept-with-break-settings"), EnumFacing.EAST, 2, 1);
+        doorBreak.stable = 40;
+        doorBreak.at.put(0, c -> {
+            PrinterConfigs.BREAK_WRONG_BLOCK.setBooleanValue(true);
+            PrinterConfigs.BREAK_WRONG_STATE.setBooleanValue(true);
+        });
+        register(r, doorBreak);
+        register(r, door(new Scenario("printer/door/facing-from-schematic"), EnumFacing.WEST, 0, 0));
+        Scenario p7 = new Scenario("printer/place/tall-plant-both-parts");
+        IBlockState sunflower = Blocks.DOUBLE_PLANT.getDefaultState().withProperty(BlockDoublePlant.VARIANT, BlockDoublePlant.EnumPlantType.SUNFLOWER);
+        p7.put(2, 0, 1, sunflower.withProperty(BlockDoublePlant.HALF, BlockDoublePlant.EnumBlockHalf.LOWER));
+        p7.put(2, 1, 1, sunflower.withProperty(BlockDoublePlant.HALF, BlockDoublePlant.EnumBlockHalf.UPPER));
+        p7.preplaced.put(new BlockPos(2, -1, 1), Blocks.GRASS.getDefaultState());
+        register(r, p7);
 
         // printer/break/: real survival mining of what the placement wants gone
         Scenario b1 = new Scenario("printer/break/wrong-block-mined-and-replaced");
@@ -698,19 +724,25 @@ final class PrinterTests {
     /** As above, with blocks already in the world (relative position -> state) before Easy Place clicks. */
     private static Scenario easyPlace(Runner.Registry r, String name, IBlockState target, java.util.Map<BlockPos, IBlockState> preplaced) {
         Scenario s = new Scenario("easyplace/" + name);
-        s.autoEnable = false;
         s.preplaced.putAll(preplaced);
         s.put(0, 0, 0, target);
+        return easyPlaceAt(r, s, new BlockPos(0, 0, 0));
+    }
+
+    /** Easy Place clicks aimed at one block (relative position) of the scenario's schematic until the scenario's check holds. */
+    private static Scenario easyPlaceAt(Runner.Registry r, Scenario s, BlockPos aim) {
+        s.autoEnable = false;
         s.at.put(0, c -> PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(true));
+        Scenario.Check check = s.check;
         s.check = (c, sc) -> {
-            String problem = Scenario.allBuilt(c, sc);
+            String problem = check.problem(c, sc);
             if (problem == null) {
                 EASY_TARGET.target = null;
                 return null;
             }
             if (sc.sinceReady() % 4 == 0 && sc.sinceReady() >= 0) {
-                EASY_TARGET.target = new com.useleess.litematicaupgraded.malilib.util.position.BlockPos(sc.world(new BlockPos(0, 0, 0)).getX(),
-                        sc.world(new BlockPos(0, 0, 0)).getY(), sc.world(new BlockPos(0, 0, 0)).getZ());
+                BlockPos at = sc.world(aim);
+                EASY_TARGET.target = new com.useleess.litematicaupgraded.malilib.util.position.BlockPos(at.getX(), at.getY(), at.getZ());
                 EasyPlaceUtils.handleEasyPlaceWithMessage();
                 EASY_TARGET.target = null;
             }
@@ -845,6 +877,29 @@ final class PrinterTests {
         java.util.Arrays.fill(slots, ItemStack.EMPTY);
         for (int i = 0; i < pairs.length; i += 2) slots[(Integer) pairs[i]] = (ItemStack) pairs[i + 1];
         return slots;
+    }
+
+    /**
+     * An oak door at (x, 0, z) and (x, 1, z) facing the given way (the player looks another way). The check: both parts
+     * stand as the schematic has them, were never mined once standing, and one of the 3 door items given was used (no ghost item).
+     */
+    private static Scenario door(Scenario s, EnumFacing facing, int x, int z) {
+        IBlockState lower = Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.FACING, facing).withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.LOWER);
+        s.put(x, 0, z, lower).put(x, 1, z, lower.withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.UPPER));
+        s.give = false;
+        s.extraCommands.add("give @s minecraft:wooden_door 3");
+        s.extraReady = mc -> mc.player.inventory.mainInventory.stream().filter(stack -> stack.getItem() == Items.OAK_DOOR).mapToInt(ItemStack::getCount).sum() >= 3;
+        boolean[] stood = {false};
+        s.check = (c, sc) -> {
+            boolean standing = !Scenario.isAir(c, sc, new BlockPos(x, 0, z));
+            if (stood[0] && !standing) return "the door was mined after it stood";
+            stood[0] |= standing;
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            int doors = count(c, Items.OAK_DOOR);
+            return doors == 2 ? null : "door items left: " + doors + " (wanted 2 of the 3 given)";
+        };
+        return s;
     }
 
     /** A water or lava source in the schematic; the world must end up with a source of that fluid there. */

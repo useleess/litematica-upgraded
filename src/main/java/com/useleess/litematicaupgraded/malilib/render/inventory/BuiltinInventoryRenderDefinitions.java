@@ -7,9 +7,9 @@ import com.useleess.litematicaupgraded.malilib.util.StringUtils;
 
 public class BuiltinInventoryRenderDefinitions
 {
-    private static final BaseIcon PLAYER_MAIN_INV_BACKGROUND     = new BaseIcon(0, 0, 176, 64, StringUtils.identifier(MaLiLibReference.MOD_ID, "textures/gui/inventory_background_misc.png"));
-    private static final BaseIcon PLAYER_HOTBAR_BACKGROUND_1     = new BaseIcon(0,  6, 176, 19, StringUtils.identifier(MaLiLibReference.MOD_ID, "textures/gui/inventory_background_misc.png"));
-    private static final BaseIcon PLAYER_HOTBAR_BACKGROUND_2     = new BaseIcon(0, 61, 176,  7, StringUtils.identifier(MaLiLibReference.MOD_ID, "textures/gui/inventory_background_misc.png"));
+    private static final BaseIcon PLAYER_MAIN_INV_BACKGROUND     = new BaseIcon(0, 0, 176, 64, StringUtils.identifier(MaLiLibReference.ASSETS_ID, "textures/gui/malilib/inventory_background_misc.png"));
+    private static final BaseIcon PLAYER_HOTBAR_BACKGROUND_1     = new BaseIcon(0,  6, 176, 19, StringUtils.identifier(MaLiLibReference.ASSETS_ID, "textures/gui/malilib/inventory_background_misc.png"));
+    private static final BaseIcon PLAYER_HOTBAR_BACKGROUND_2     = new BaseIcon(0, 61, 176,  7, StringUtils.identifier(MaLiLibReference.ASSETS_ID, "textures/gui/malilib/inventory_background_misc.png"));
 
     public static final InventoryRenderDefinition BREWING_STAND = InventoryRenderDefinition.builder()
                             .renderSize(117, 73)

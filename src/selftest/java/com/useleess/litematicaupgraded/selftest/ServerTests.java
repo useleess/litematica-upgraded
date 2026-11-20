@@ -429,8 +429,10 @@ final class ServerTests {
         // a door takes the schematic's open and hinge though its two halves come from one click
         Scenario a7 = accurate(prefix + "door-open-with-its-hinge");
         a7.put(0, 0, 0, Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.FACING, EnumFacing.EAST).withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.LOWER).withProperty(BlockDoor.OPEN, true));
-        // the world stores a door's facing and open in the lower half, its hinge in the upper one
-        a7.put(0, 1, 0, Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.UPPER).withProperty(BlockDoor.HINGE, BlockDoor.EnumHingePosition.RIGHT));
+        // the world stores a door's facing and open in the lower half, its hinge in the upper one; a schematic holds both
+        // halves in full (what the world shows), and the upper half is compared the same way
+        a7.put(0, 1, 0, Blocks.OAK_DOOR.getDefaultState().withProperty(BlockDoor.FACING, EnumFacing.EAST).withProperty(BlockDoor.HALF, BlockDoor.EnumDoorHalf.UPPER)
+                .withProperty(BlockDoor.OPEN, true).withProperty(BlockDoor.HINGE, BlockDoor.EnumHingePosition.RIGHT));
         a7.stable = 20;
         register(r, a7);
         // side by side rails keep their straight shape, one placed a tick after the other: vanilla would bend them together
@@ -457,6 +459,23 @@ final class ServerTests {
         a10.put(0, 0, 0, Blocks.STANDING_SIGN.getDefaultState().withProperty(BlockStandingSign.ROTATION, 5));
         a10.stable = 20;
         register(r, a10);
+        // Easy Place puts a cauldron down empty though the schematic saved it full: the water is not the placement's (#16)
+        Scenario a11 = new Scenario(prefix + "easy-place-cauldron-comes-out-empty");
+        a11.autoEnable = false;
+        BlockPos cauldronAt = new BlockPos(0, 0, 0);
+        a11.put(0, 0, 0, Blocks.CAULDRON.getDefaultState().withProperty(net.minecraft.block.BlockCauldron.LEVEL, 3));
+        a11.at.put(0, c -> PrinterConfigs.EASY_PLACE_FAKE_ROTATION.setBooleanValue(true));
+        a11.stable = 20;
+        a11.check = (c, sc) -> {
+            IBlockState real = c.mc.world.getBlockState(sc.world(cauldronAt));
+            if (real.getBlock() != Blocks.CAULDRON) {
+                PrinterTests.clickEasyPlace(c, sc, 0, 0, 0);
+                return "no cauldron yet: " + real;
+            }
+            int level = real.getValue(net.minecraft.block.BlockCauldron.LEVEL);
+            return level == 0 ? null : "the cauldron came out with water level " + level + ", wanted empty";
+        };
+        register(r, a11);
     }
 
     /** Items out of shulker boxes in the inventory (our server part, or a Carpet server with the rule on). */
@@ -529,6 +548,41 @@ final class ServerTests {
             return ServerAssist.shulkerSent > easyBefore[0] ? null : "no restock request was sent";
         };
         register(r, s4);
+        // #18: the amount taken per request follows the setting
+        Scenario s5 = new Scenario(prefix + "single-item-mode-takes-one-at-a-time");
+        s5.give = false;
+        s5.put(0, 0, 0, STONE).put(1, 0, 0, STONE).put(2, 0, 0, STONE).put(3, 0, 0, STONE);
+        s5.extraCommands.add(box("stone", 8));
+        s5.extraReady = mc -> hasBoxes(mc, 1);
+        int[] singleBefore = {0};
+        s5.at.put(0, c -> {
+            singleBefore[0] = ServerAssist.shulkerSent;
+            PrinterConfigs.SHULKER_RESTOCK_AMOUNT.setValue(com.useleess.litematicaupgraded.printer.RestockAmount.SINGLE_ITEM);
+        });
+        s5.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            int carried = carried(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            int boxed = inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            if (carried != 0 || boxed != 4) return "carried " + carried + " (wanted 0), in the box " + boxed + " (wanted 4)";
+            int sent = ServerAssist.shulkerSent - singleBefore[0];
+            return sent >= 4 ? null : "only " + sent + " restock requests for 4 single items";
+        };
+        register(r, s5);
+        Scenario s6 = new Scenario(prefix + "half-stack-mode-takes-half-a-stack");
+        s6.give = false;
+        s6.put(0, 0, 0, STONE).put(1, 0, 0, STONE);
+        s6.extraCommands.add(box("stone", 64));
+        s6.extraReady = mc -> hasBoxes(mc, 1);
+        s6.at.put(0, c -> PrinterConfigs.SHULKER_RESTOCK_AMOUNT.setValue(com.useleess.litematicaupgraded.printer.RestockAmount.HALF_STACK));
+        s6.check = (c, sc) -> {
+            String problem = Scenario.allBuilt(c, sc);
+            if (problem != null) return problem;
+            int carried = carried(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            int boxed = inBoxes(c.mc, Item.getItemFromBlock(Blocks.STONE));
+            return carried == 30 && boxed == 32 ? null : "carried " + carried + " (wanted 30), in the box " + boxed + " (wanted 32)";
+        };
+        register(r, s6);
     }
 
     /** The printer on a server that offers nothing: it builds by itself and asks the server for nothing. */

@@ -4,7 +4,8 @@
 
 Java files move from <lib>/ (litematica/, malilib/) to com/useleess/litematicaupgraded/<lib>/ (relocated so a LiteLoader
 Litematica in the same game can't clash) and must keep at least 70% of their non-blank lines. Asset files must all
-be there. A loader-only file that really has no Forge counterpart goes in tools/upstream-exceptions.txt as
+be there; pictures and shaders (textures/, shaders/) move from assets/<lib>/<kind>/ to assets/litematica_upgraded/<kind>/<lib>/
+(masa's LiteLoader mods ship other files at the old paths, which replaced ours: Discord #12). A loader-only file that really has no Forge counterpart goes in tools/upstream-exceptions.txt as
 "<upstream path> | <reason>" (at most 10, each one read by the reviewer).
 """
 import sys
@@ -13,6 +14,12 @@ from pathlib import Path
 LIBS = ("litematica", "malilib")
 MAX_EXCEPTIONS = 10
 MIN_SHARE = 0.7
+
+
+def moved(lib, rel):
+    """Where an upstream picture or shader lives in our own asset folder (rel: assets/<lib>/<kind>/<file>)."""
+    kind, _, name = rel[len(f"assets/{lib}/"):].rpartition("/")
+    return f"assets/litematica_upgraded/{kind}/{lib}/{name}"
 
 
 def lines(path):
@@ -48,7 +55,7 @@ def main(ref, mod):
         for src in sorted((base / "resources" / "assets").rglob("*")):
             if src.is_file():
                 rel = src.relative_to(base / "resources").as_posix()
-                if not (mod / "src/main/resources" / rel).exists():
+                if not (mod / "src/main/resources" / rel).exists() and not (mod / "src/main/resources" / moved(lib, rel)).exists():
                     problems.append(f"missing asset: {rel}")
     for path in exceptions:
         if not any((ref / f"{lib}-ornithe-1.12.2/src/main/java" / path).exists() for lib in LIBS):

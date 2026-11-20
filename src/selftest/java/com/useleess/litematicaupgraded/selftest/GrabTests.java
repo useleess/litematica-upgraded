@@ -108,6 +108,11 @@ final class GrabTests {
             BlockPos at = s.world(STORE);
             if (phase[0] == 0) {
                 if (c.mc.world.getBlockState(at).getBlock() != Block.getBlockFromName(block)) return "waiting for the storage block";
+                // the grab counts what the schematic world holds: it must hold the whole placement first
+                net.minecraft.world.World schematic = com.useleess.litematicaupgraded.litematica.world.SchematicWorldHandler.getSchematicWorld();
+                for (java.util.Map.Entry<BlockPos, net.minecraft.block.state.IBlockState> e : s.build.entrySet()) {
+                    if (schematic == null || schematic.getBlockState(s.world(e.getKey())).getBlock() != e.getValue().getBlock()) return "waiting for the schematic world";
+                }
                 open(c, at);
                 phase[0] = 1;
                 return "opening it";

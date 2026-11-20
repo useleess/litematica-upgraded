@@ -201,6 +201,7 @@ final class Tests {
             return true;
         });
         ForgeButtonTests.register(r);
+        EditTests.register(r);
         MessageTests.register(r);
 
         // schematic/: .litematic files load, and what they hold matches the file

@@ -9,6 +9,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockBed;
 import net.minecraft.block.BlockChest;
 import net.minecraft.block.BlockDispenser;
+import net.minecraft.block.BlockDoor;
 import net.minecraft.block.BlockEnderChest;
 import net.minecraft.block.BlockFalling;
 import net.minecraft.block.BlockFurnace;
@@ -89,7 +90,7 @@ public final class PlacementSolver {
         if (stack.isEmpty()) return null;
         List<EnumFacing> sides = solidSides(world, pos);
         Block placedBlock = blockOf(stack.getItem());
-        if (placedBlock == null) return sides.isEmpty() ? null : itemClick(target, pos, sides);
+        if (placedBlock == null) return sides.isEmpty() ? null : itemClick(target, pos, sides, fakeRotation);
         PrinterLook[] rotations = PrinterLook.candidates(player.rotationYaw);
         PrinterLook[] looks = new PrinterLook[fakeRotation ? rotations.length + 1 : 1];
         if (fakeRotation) System.arraycopy(rotations, 0, looks, 1, rotations.length);
@@ -113,15 +114,20 @@ public final class PlacementSolver {
         }
     }
 
-    /** Doors, beds, signs...: their state comes from the item's own rules; click the block below (or the first solid side). */
-    private static Solution itemClick(IBlockState target, BlockPos pos, List<EnumFacing> sides) {
+    /**
+     * Doors, beds, signs...: their state comes from the item's own rules; click the block below (or the first solid side).
+     * A door faces the way the player looks, so with fake rotation the look is turned to the schematic's facing.
+     */
+    private static Solution itemClick(IBlockState target, BlockPos pos, List<EnumFacing> sides, boolean fakeRotation) {
         EnumFacing direction = sides.get(0);
         if (target.getBlock() instanceof BlockWallSign) {
             // a wall sign hangs on the block it is clicked on, facing away from it
             direction = target.getValue(BlockWallSign.FACING).getOpposite();
             if (!sides.contains(direction)) return null;
         }
-        return new Solution(pos.offset(direction), direction.getOpposite(), center(pos.offset(direction), direction.getOpposite(), 0.5f), null, null);
+        PrinterLook look = fakeRotation && target.getBlock() instanceof BlockDoor
+            ? new PrinterLook(target.getValue(BlockDoor.FACING).getHorizontalAngle(), 0) : null;
+        return new Solution(pos.offset(direction), direction.getOpposite(), center(pos.offset(direction), direction.getOpposite(), 0.5f), look, null);
     }
 
     /**
@@ -135,7 +141,7 @@ public final class PlacementSolver {
         if (block == null) {
             // not a bed: the player's facing decides where its other half goes, the server could only turn one half
             List<EnumFacing> sides = solidSides(world, pos);
-            return sides.isEmpty() || target.getBlock() instanceof BlockBed ? null : itemClick(target, pos, sides);
+            return sides.isEmpty() || target.getBlock() instanceof BlockBed ? null : itemClick(target, pos, sides, false);
         }
         for (EnumFacing direction : solidSides(world, pos)) {
             Solution found = makesBlock(world, player, block, stack, target, pos, pos.offset(direction), direction.getOpposite());

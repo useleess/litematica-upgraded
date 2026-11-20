@@ -3,11 +3,11 @@ package com.useleess.litematicaupgraded.litematica.gui.util;
 import com.useleess.litematicaupgraded.malilib.gui.icon.BaseIcon;
 import com.useleess.litematicaupgraded.malilib.registry.Registry;
 import com.useleess.litematicaupgraded.malilib.util.data.Identifier;
-import com.useleess.litematicaupgraded.litematica.Reference;
+import com.useleess.litematicaupgraded.malilib.MaLiLibReference;
 
 public class LitematicaIcons
 {
-    public static final Identifier LITEMATICA_GUI_TEXTURES = new Identifier(Reference.MOD_ID, "textures/gui/gui_widgets.png");
+    public static final Identifier LITEMATICA_GUI_TEXTURES = new Identifier(MaLiLibReference.ASSETS_ID, "textures/gui/litematica/gui_widgets.png");
 
     public static final BaseIcon DUMMY                          = register(  0,   0,  0,  0,  0,  0);
     public static final BaseIcon ENCLOSING_BOX_ENABLED          = register(  0, 144, 16, 16);

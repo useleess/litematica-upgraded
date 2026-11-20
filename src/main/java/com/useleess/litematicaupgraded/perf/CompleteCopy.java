@@ -143,15 +143,17 @@ public final class CompleteCopy {
 
     /**
      * The placement's boxes where its blocks still are in the schematic world (at {@code originBefore}; the placement itself
-     * already has the new origin), cut into 16-block pieces and keyed by the piece's corner.
+     * already has the new origin), cut into 16-block pieces and keyed by the piece's corner. Other placements' boxes are left out.
      */
-    private static Map<Long, List<IntBoundingBox>> boxesBefore(SchematicPlacement target, BlockPos originBefore) {
+    static Map<Long, List<IntBoundingBox>> boxesBefore(SchematicPlacement target, BlockPos originBefore) {
         SchematicPlacementManager manager = DataManager.getSchematicPlacementManager();
         BlockPos now = target.getPosition();
         int sx = now.getX() - originBefore.getX(), sy = now.getY() - originBefore.getY(), sz = now.getZ() - originBefore.getZ();
         Map<Long, List<IntBoundingBox>> out = new HashMap<>();
         for (ChunkSectionPos p : manager.getAllTouchedSubChunks()) {
-            for (IntBoundingBox b : manager.getTouchedBoxesInSubChunk(p)) {
+            for (SchematicPlacementManager.PlacementPart part : manager.getAllPlacementsTouchingSubChunk(p)) {
+                if (part.getPlacement() != target) continue;
+                IntBoundingBox b = part.getBox();
                 int x0 = b.minX - sx, y0 = b.minY - sy, z0 = b.minZ - sz, x1 = b.maxX - sx, y1 = b.maxY - sy, z1 = b.maxZ - sz;
                 for (int px = x0 >> 4; px <= x1 >> 4; px++) {
                     for (int py = y0 >> 4; py <= y1 >> 4; py++) {

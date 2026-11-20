@@ -71,33 +71,33 @@ public class DefaultIcons
 
     public static final BaseIcon BUTTON_BACKGROUND              = register( 56, 196, 200, 20, 0, 20);
 
-    public static final BaseIcon TOAST_BACKGROUND                   = register(  0,   0, 256, 128, "textures/gui/toasts.png");
+    public static final BaseIcon TOAST_BACKGROUND                   = register(  0,   0, 256, 128, "textures/gui/malilib/toasts.png");
 
-    public static final BaseIcon INV_BACKGROUND_EMPTY_13_X_13       = register(  0,   0, 248, 248, "textures/gui/inventory_background_empty_13x13.png");
-    public static final BaseIcon INV_BACKGROUND_GENERIC_54          = register(  0,   0, 176, 122, "textures/gui/inventory_background_generic_54.png");
+    public static final BaseIcon INV_BACKGROUND_EMPTY_13_X_13       = register(  0,   0, 248, 248, "textures/gui/malilib/inventory_background_empty_13x13.png");
+    public static final BaseIcon INV_BACKGROUND_GENERIC_54          = register(  0,   0, 176, 122, "textures/gui/malilib/inventory_background_generic_54.png");
 
-    public static final BaseIcon INV_BACKGROUND_BREWING_STAND       = register(128, 183, 117,  73, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_DROPPER             = register(176,   0,  68,  68, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_FURNACE             = register(  0, 188,  96,  68, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_GENERIC_27          = register(  0,   0, 176,  68, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_HOPPER              = register(  0,  68, 104,  32, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_HORSE_EQUIPMENT     = register( 96, 206,  32,  50, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_HORSE_INVENTORY     = register(103, 102, 105,  68, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_LIVING_ENTITY       = register(  0, 102,  53,  86, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_BACKGROUND_VILLAGER_INV        = register( 53, 102,  50,  86, "textures/gui/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_BREWING_STAND       = register(128, 183, 117,  73, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_DROPPER             = register(176,   0,  68,  68, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_FURNACE             = register(  0, 188,  96,  68, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_GENERIC_27          = register(  0,   0, 176,  68, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_HOPPER              = register(  0,  68, 104,  32, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_HORSE_EQUIPMENT     = register( 96, 206,  32,  50, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_HORSE_INVENTORY     = register(103, 102, 105,  68, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_LIVING_ENTITY       = register(  0, 102,  53,  86, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_BACKGROUND_VILLAGER_INV        = register( 53, 102,  50,  86, "textures/gui/malilib/inventory_background_misc.png");
 
-    public static final BaseIcon INV_BACKGROUND_14_SLOTS_HORIZONTAL = register(  4, 238, 252,  18, "textures/gui/inventory_background_generic_54.png");
-    public static final BaseIcon INV_BACKGROUND_14_SLOTS_VERTICAL   = register(238,   4,  18, 252, "textures/gui/inventory_background_generic_54.png");
+    public static final BaseIcon INV_BACKGROUND_14_SLOTS_HORIZONTAL = register(  4, 238, 252,  18, "textures/gui/malilib/inventory_background_generic_54.png");
+    public static final BaseIcon INV_BACKGROUND_14_SLOTS_VERTICAL   = register(238,   4,  18, 252, "textures/gui/malilib/inventory_background_generic_54.png");
 
-    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_HEAD      = register(104,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_CHEST     = register(122,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_LEGS      = register(140,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_BOOTS     = register(158,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_EQUIPMENT_SHIELD          = register(176,  68,  18,  18, "textures/gui/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_HEAD      = register(104,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_CHEST     = register(122,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_LEGS      = register(140,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_EQUIPMENT_ARMOR_BOOTS     = register(158,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_EQUIPMENT_SHIELD          = register(176,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
 
-    public static final BaseIcon INV_SLOT_HORSE_ARMOR               = register(194,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_HORSE_SADDLE              = register(212,  68,  18,  18, "textures/gui/inventory_background_misc.png");
-    public static final BaseIcon INV_SLOT_LLAMA_CARPET              = register(230,  68,  18,  18, "textures/gui/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_HORSE_ARMOR               = register(194,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_HORSE_SADDLE              = register(212,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
+    public static final BaseIcon INV_SLOT_LLAMA_CARPET              = register(230,  68,  18,  18, "textures/gui/malilib/inventory_background_misc.png");
 
     private static BaseIcon register(int u, int v, int w, int h)
     {
@@ -111,7 +111,7 @@ public class DefaultIcons
 
     private static BaseIcon register(int u, int v, int w, int h, String texture)
     {
-        return register(new BaseIcon(u, v, w, h, 0, 0, new Identifier(MaLiLibReference.MOD_ID, texture)));
+        return register(new BaseIcon(u, v, w, h, 0, 0, new Identifier(MaLiLibReference.ASSETS_ID, texture)));
     }
 
     private static <T extends Icon> T register(T icon)

@@ -1098,6 +1098,29 @@ final class PerfDrawTests {
             }
             c.check(screenHooks() >= 2, "masa's malilib screen hook is not next to ours in EntityRenderer (" + screenHooks() + " found)");
         });
+        // masa's LiteLoader malilib and Litematica ship pictures at the paths our copies once had, with other layouts: every
+        // picture we draw must come from our own jar, or our buttons show pieces of his (Discord #12)
+        int[] frames = {0};
+        r.waitFor(prefix + "our-gui-pictures-are-ours-not-masas", 200, c -> {
+            frames[0] = 0;
+            c.mc.displayGuiScreen(com.useleess.litematicaupgraded.litematica.gui.ConfigScreen.create());
+        }, c -> {
+            if (++frames[0] < 10) return false;
+            net.minecraft.client.resources.IResourceManager resources = c.mc.getResourceManager();
+            String ours = resources.getResource(new net.minecraft.util.ResourceLocation("litematica_upgraded", "lang/en_us.lang")).getResourcePackName();
+            for (net.minecraft.util.ResourceLocation picture : new net.minecraft.util.ResourceLocation[] {
+                    com.useleess.litematicaupgraded.malilib.gui.icon.BaseIcon.MALILIB_GUI_WIDGETS_TEXTURE,
+                    com.useleess.litematicaupgraded.litematica.gui.util.LitematicaIcons.LITEMATICA_GUI_TEXTURES,
+                    com.useleess.litematicaupgraded.malilib.gui.icon.DefaultIcons.TOAST_BACKGROUND.getTexture(),
+                    com.useleess.litematicaupgraded.malilib.gui.icon.DefaultIcons.INV_BACKGROUND_EMPTY_13_X_13.getTexture(),
+                    com.useleess.litematicaupgraded.malilib.gui.icon.DefaultIcons.INV_BACKGROUND_GENERIC_54.getTexture(),
+                    com.useleess.litematicaupgraded.malilib.gui.icon.DefaultIcons.INV_BACKGROUND_FURNACE.getTexture()}) {
+                String from = resources.getResource(picture).getResourcePackName();
+                c.check(ours.equals(from), picture + " comes from " + from + ", not from our jar (" + ours + ")");
+            }
+            Runner.shot(c.mc, prefix.replace('/', '-') + "config-screen");
+            return true;
+        });
     }
 
     /** The names of the mods LiteLoader loaded, lower case without spaces, comma separated ("" for none). */

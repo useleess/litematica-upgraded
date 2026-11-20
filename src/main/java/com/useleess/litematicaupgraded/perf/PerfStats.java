@@ -17,9 +17,11 @@ public final class PerfStats {
     private static final AtomicLong copyCellsSkipped = new AtomicLong();
     private static final AtomicLong copyNanos = new AtomicLong();
     private static final AtomicLong ghostMoves = new AtomicLong();
+    /** Moves that took the normal path: a section shared with another placement / no built chunk where the placement was. */
+    private static final AtomicLong ghostSharedSection = new AtomicLong(), ghostNothingBuilt = new AtomicLong();
     private static final AtomicLong completeBuilds = new AtomicLong();
 
-    /** What each chunk build produced (vertex counts of its layers), by sub-chunk position and where it ran, for comparing builds. */
+    /** What each chunk build produced (vertex bytes of its layers), by sub-chunk position and where it ran, for comparing builds. */
     private static final Map<Long, int[]> SIGNATURES_WORKER = new ConcurrentHashMap<>();
     private static final Map<Long, int[]> SIGNATURES_MAIN = new ConcurrentHashMap<>();
 
@@ -60,8 +62,8 @@ public final class PerfStats {
         ghostMoves.incrementAndGet();
     }
 
-    public static void recordSignature(long chunkKey, int[] layerVertexCounts, boolean onMainThread) {
-        (onMainThread ? SIGNATURES_MAIN : SIGNATURES_WORKER).put(chunkKey, layerVertexCounts);
+    public static void recordSignature(long chunkKey, int[] layerVertexBytes, boolean onMainThread) {
+        (onMainThread ? SIGNATURES_MAIN : SIGNATURES_WORKER).put(chunkKey, layerVertexBytes);
     }
 
     public static Map<Long, int[]> signatures(boolean mainThread) {
@@ -84,6 +86,16 @@ public final class PerfStats {
     public static long copyCellsSkipped() { return copyCellsSkipped.get(); }
     public static long copyNanos() { return copyNanos.get(); }
     public static long ghostMoves() { return ghostMoves.get(); }
+    public static long ghostSharedSection() { return ghostSharedSection.get(); }
+    public static long ghostNothingBuilt() { return ghostNothingBuilt.get(); }
+
+    public static void recordGhostSharedSection() {
+        ghostSharedSection.incrementAndGet();
+    }
+
+    public static void recordGhostNothingBuilt() {
+        ghostNothingBuilt.incrementAndGet();
+    }
 
     /** One line over the last second for the F3 screen. */
     public static synchronized String summary(int threads, int queued) {

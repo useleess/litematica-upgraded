@@ -22,6 +22,11 @@
    "what": "load .litematic files, create placements, block counts and positions match the file"
   },
   {
+   "prefix": "schematic/edit/",
+   "min": 1,
+   "what": "Schematic Edit mode replacing keeps facing, open, half, hinge (both door halves swap together), never the material (#14)"
+  },
+  {
    "prefix": "render/",
    "min": 4,
    "what": "placed schematics render: schematic world has the blocks, the schematic renderer builds chunks; drawing before the schematic world exists does not crash, nor does any later step of the frame (Discord #1, #2)"
@@ -87,6 +92,11 @@
    "what": "Easy Place gives trapdoors, fence gates and levers the schematic's open / on state (clicks after placing; fixes a built block in the wrong state)"
   },
   {
+   "prefix": "easyplace/door/",
+   "min": 2,
+   "what": "Easy Place builds a door aimed at either part from its lower part, facing the schematic's way, one item used (no ghost item)"
+  },
+  {
    "prefix": "title/",
    "min": 1,
    "what": "Litematica screens show the real version, not '?'"
@@ -100,6 +110,11 @@
    "prefix": "printer/break/",
    "min": 3,
    "what": "printer mines blocks the placement wants gone (wrong block, wrong state, extra block) with real survival mining; never touches blocks outside the placement or that are right"
+  },
+  {
+   "prefix": "printer/door/",
+   "min": 2,
+   "what": "printer builds doors facing the schematic's way and keeps the upper part (it shows its facing only through the lower part), also with the break-wrong settings on"
   },
   {
    "prefix": "printer/tool/",
@@ -168,7 +183,7 @@
   },
   {
    "prefix": "server/accurate/",
-   "min": 10,
+   "min": 11,
    "what": "accurate placement: with the server part, the printer and Easy Place place blocks in the schematic's whole state in one click (facing, half, axis, delay, mode, open, a lever's switch), incl. cases clicks cannot do (piston facing down, top halves on the ground); redstone parts come out unpowered"
   },
   {
@@ -183,8 +198,8 @@
   },
   {
    "prefix": "server/shulker/",
-   "min": 3,
-   "what": "shulker restock: printer and Easy Place take needed items from shulker boxes in the inventory (server option, or a Carpet server with the rule)"
+   "min": 5,
+   "what": "shulker restock: printer and Easy Place take needed items from shulker boxes in the inventory (server option, or a Carpet server with the rule); full / half stack / single item setting (#18)"
   },
   {
    "prefix": "server/fallback/",
@@ -292,9 +307,19 @@
    "what": "ghost move: while a placement is moved, built chunks are drawn shifted without rebuilding; after it settles the real rebuild replaces them; rotate / mirror take the normal path"
   },
   {
+   "prefix": "perf/ghost-beside/",
+   "min": 2,
+   "what": "smooth moving also works with other schematics shown when none shares a 16-block section with the moved one (they stay drawn); one that shares sections takes the normal path"
+  },
+  {
    "prefix": "perf/sparse/",
    "min": 3,
    "what": "huge mostly-empty schematics: memory only for sections that hold blocks (no air processed), a 24M and a 640M cell box load, place and render with a handful of render pieces; out-of-memory shows a message instead of crashing"
+  },
+  {
+   "prefix": "perf/dense/",
+   "min": 1,
+   "what": "a big packed schematic (528 x 256 x 528, a third full) flown across: only pieces near the camera keep their re-sort copies (they filled gigabytes, #19), the nearest piece still re-sorts"
   },
   {
    "prefix": "perf/config/",
@@ -373,17 +398,17 @@
   },
   {
    "prefix": "compat/liteloader-optifine/",
-   "min": 6,
+   "min": 7,
    "what": "a player's setup (Discord #4): Forge first, LiteLoader after it, OptiFine in mods/1.12.2, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller: the game starts with our mixins, masa's mods run, a placement draws and moves, and after joining the client keeps ticking and drawing frames for 10 s (no freeze)"
   },
   {
    "prefix": "compat/liteloader-first/",
-   "min": 6,
+   "min": 7,
    "what": "a player's setup (Discord #2): Prism starts LiteLoader before Forge, OptiFine in mods/1.12.2, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller: the game starts with our mixins, our schematic world is made on joining, masa's mods run, a schematic placement draws and moves"
   },
   {
    "prefix": "compat/liteloader/",
-   "min": 5,
+   "min": 6,
    "what": "Forge + LiteLoader, NO MixinBooter: the game starts, our mixins are applied (using LiteLoader's Mixin) and a schematic placement draws and moves; our schematic world is made on joining, masa's LiteLoader malilib / MiniHUD / Tweakeroo / Item Scroller run next to ours, his Litematica installed too: no crash, the player is told to remove it (Discord #2); with MixinBooter and no LiteLoader everything works as before"
   },
   {
@@ -398,7 +423,7 @@
   },
   {
    "prefix": "uc/accurate/",
-   "min": 10,
+   "min": 11,
    "what": "exact block states through UC's rule, real client and real server"
   },
   {
